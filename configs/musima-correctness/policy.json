@@ -1,0 +1,237 @@
+{
+  "rules": [
+    {
+      "effect": "ALLOW",
+      "env": {
+        "EA_1": "EA_1_2",
+        "EA_2": "EA_2_2"
+      },
+      "obj": {
+        "OA_1": "OA_1_2",
+        "OA_2": "OA_2_2"
+      },
+      "op": "READ",
+      "user": {
+        "SA_1": "SA_1_3",
+        "SA_2": "SA_2_2",
+        "SA_3": "SA_3_4"
+      }
+    },
+    {
+      "effect": "ALLOW",
+      "env": {
+        "EA_1": "EA_1_3",
+        "EA_2": "EA_2_1"
+      },
+      "obj": {
+        "OA_1": "OA_1_4"
+      },
+      "op": "READ",
+      "user": {
+        "SA_1": "SA_1_3",
+        "SA_2": "SA_2_2"
+      }
+    },
+    {
+      "effect": "ALLOW",
+      "env": {
+        "EA_1": "EA_1_2"
+      },
+      "obj": {
+        "OA_1": "OA_1_3",
+        "OA_2": "OA_2_2"
+      },
+      "op": "READ",
+      "user": {
+        "SA_1": "SA_1_1",
+        "SA_2": "SA_2_4"
+      }
+    },
+    {
+      "effect": "ALLOW",
+      "env": {
+        "EA_2": "EA_2_2"
+      },
+      "obj": {
+        "OA_2": "OA_2_1"
+      },
+      "op": "READ",
+      "user": {
+        "SA_1": "SA_1_4",
+        "SA_3": "SA_3_3"
+      }
+    },
+    {
+      "effect": "ALLOW",
+      "env": {},
+      "obj": {
+        "OA_1": "OA_1_4"
+      },
+      "op": "READ",
+      "user": {
+        "SA_2": "SA_2_2",
+        "SA_3": "SA_3_1"
+      }
+    },
+    {
+      "effect": "ALLOW",
+      "env": {},
+      "obj": {
+        "OA_1": "OA_1_1",
+        "OA_2": "OA_2_2",
+        "OA_3": "OA_3_3"
+      },
+      "op": "READ",
+      "user": {
+        "SA_1": "SA_1_1",
+        "SA_3": "SA_3_2"
+      }
+    },
+    {
+      "effect": "ALLOW",
+      "env": {
+        "EA_2": "EA_2_1"
+      },
+      "obj": {
+        "OA_1": "OA_1_1"
+      },
+      "op": "READ",
+      "user": {
+        "SA_2": "SA_2_3",
+        "SA_3": "SA_3_2"
+      }
+    },
+    {
+      "effect": "ALLOW",
+      "env": {
+        "EA_1": "EA_1_2",
+        "EA_2": "EA_2_2"
+      },
+      "obj": {
+        "OA_2": "OA_2_3"
+      },
+      "op": "READ",
+      "user": {
+        "SA_1": "SA_1_1"
+      }
+    },
+    {
+      "effect": "ALLOW",
+      "env": {
+        "EA_1": "EA_1_2",
+        "EA_2": "EA_2_2"
+      },
+      "obj": {
+        "OA_1": "OA_1_4",
+        "OA_2": "OA_2_2"
+      },
+      "op": "READ",
+      "user": {
+        "__musima_any_subject": "1"
+      }
+    },
+    {
+      "effect": "ALLOW",
+      "env": {
+        "EA_1": "EA_1_3",
+        "EA_2": "EA_2_1"
+      },
+      "obj": {
+        "__musima_any_object": "1"
+      },
+      "op": "READ",
+      "user": {
+        "SA_2": "SA_2_2"
+      }
+    },
+    {
+      "effect": "ALLOW",
+      "env": {
+        "EA_1": "EA_1_2"
+      },
+      "obj": {
+        "OA_2": "OA_2_2"
+      },
+      "op": "READ",
+      "user": {
+        "SA_2": "SA_2_1"
+      }
+    },
+    {
+      "effect": "ALLOW",
+      "env": {
+        "EA_1": "EA_1_3"
+      },
+      "obj": {
+        "OA_1": "OA_1_1",
+        "OA_3": "OA_3_1"
+      },
+      "op": "READ",
+      "user": {
+        "SA_1": "SA_1_2",
+        "SA_3": "SA_3_1"
+      }
+    },
+    {
+      "effect": "DENY",
+      "env": {
+        "EA_1": "EA_1_2"
+      },
+      "obj": {
+        "OA_1": "OA_1_2",
+        "OA_2": "OA_2_2",
+        "OA_3": "OA_3_2"
+      },
+      "op": "READ",
+      "user": {
+        "SA_3": "SA_3_4"
+      }
+    },
+    {
+      "effect": "DENY",
+      "env": {
+        "EA_1": "EA_1_3"
+      },
+      "obj": {
+        "OA_3": "OA_3_1"
+      },
+      "op": "READ",
+      "user": {
+        "SA_1": "SA_1_3",
+        "SA_3": "SA_3_1"
+      }
+    },
+    {
+      "effect": "DENY",
+      "env": {
+        "EA_2": "EA_2_2"
+      },
+      "obj": {
+        "OA_1": "OA_1_2",
+        "OA_2": "OA_2_2",
+        "OA_3": "OA_3_1"
+      },
+      "op": "READ",
+      "user": {
+        "SA_3": "SA_3_4"
+      }
+    },
+    {
+      "effect": "DENY",
+      "env": {
+        "EA_1": "EA_1_3"
+      },
+      "obj": {
+        "OA_1": "OA_1_2",
+        "OA_2": "OA_2_1",
+        "OA_3": "OA_3_2"
+      },
+      "op": "READ",
+      "user": {
+        "SA_1": "SA_1_2",
+        "SA_2": "SA_2_3",
+        "SA_3": "SA_3_1"
+      }
+    }
+  ]
+}

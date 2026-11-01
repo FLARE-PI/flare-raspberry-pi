@@ -1,0 +1,12 @@
+[Unit]
+Description=ABAC Phase 3 environment collector
+After=multi-user.target
+
+[Service]
+Type=simple
+Environment=PYTHONUNBUFFERED=1
+ExecStart=abac env collect --interval 2
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

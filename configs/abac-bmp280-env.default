@@ -1,0 +1,4 @@
+# Temperature threshold and polling interval for abac-bmp280-env.service.
+# Optional atomically replaced override: /etc/abac/bmp280_env.conf.
+TEMP_HIGH_C=30.0
+BMP280_INTERVAL=2

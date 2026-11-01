@@ -1,0 +1,8 @@
+{
+  "expected_allow_count": 1072,
+  "expected_deny_count": 2928,
+  "operation": "READ",
+  "request_count": 4000,
+  "sha256": "1b55abf5c5e30f8fe1750fe5474f16d30e9720c0698dd8450011d9d177d8f1eb",
+  "source_acm": "musima_correctness_s20_o50_e4_seed42.zip"
+}

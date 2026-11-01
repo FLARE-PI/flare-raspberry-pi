@@ -1,0 +1,2725 @@
+diff --git a/drivers/gpio/gpiolib-cdev.c b/drivers/gpio/gpiolib-cdev.c
+index 89abf7a23..ee2347d62 100644
+--- a/drivers/gpio/gpiolib-cdev.c
++++ b/drivers/gpio/gpiolib-cdev.c
+@@ -23,6 +23,7 @@
+ #include <linux/pinctrl/consumer.h>
+ #include <linux/poll.h>
+ #include <linux/seq_file.h>
++#include <linux/security.h>
+ #include <linux/spinlock.h>
+ #include <linux/string.h>
+ #include <linux/timekeeping.h>
+@@ -1306,6 +1307,11 @@ static long linereq_get_values(struct linereq *lr, void __user *ip)
+ 	/* scan requested lines to calculate the subset to get */
+ 	for (num_get = 0, i = 0; i < lr->num_lines; i++) {
+ 		if (lv.mask & BIT_ULL(i)) {
++			ret = security_gpio_line_get_value(
++				dev_name(&lr->gdev->dev),
++				gpiod_hwgpio(lr->lines[i].desc));
++			if (ret)
++				return ret;
+ 			num_get++;
+ 			/* capture desc for the num_get == 1 case */
+ 			descs = &lr->lines[i].desc;
+@@ -1379,6 +1385,11 @@ static long linereq_set_values(struct linereq *lr, void __user *ip)
+ 	/* scan requested lines to determine the subset to be set */
+ 	for (num_set = 0, i = 0; i < lr->num_lines; i++) {
+ 		if (lv.mask & BIT_ULL(i)) {
++			ret = security_gpio_line_set_value(
++				dev_name(&lr->gdev->dev),
++				gpiod_hwgpio(lr->lines[i].desc));
++			if (ret)
++				return ret;
+ 			/* add to compacted values */
+ 			if (lv.bits & BIT_ULL(i))
+ 				__set_bit(num_set, vals);
+@@ -1438,6 +1449,10 @@ static long linereq_set_config(struct linereq *lr, void __user *ip)
+ 		 */
+ 		if (!(flags & GPIO_V2_LINE_DIRECTION_FLAGS))
+ 			continue;
++		ret = security_gpio_line_config(dev_name(&lr->gdev->dev),
++					gpiod_hwgpio(desc), flags);
++		if (ret)
++			return ret;
+ 		gpio_v2_line_config_flags_to_desc_flags(flags, &desc->flags);
+ 		edflags = flags & GPIO_V2_LINE_EDGE_DETECTOR_FLAGS;
+ 		if (flags & GPIO_V2_LINE_FLAG_OUTPUT) {
+@@ -1691,12 +1706,17 @@ static int linereq_create(struct gpio_device *gdev, void __user *ip)
+ 			goto out_free_linereq;
+ 		}
+ 
++		flags = gpio_v2_line_config_flags(lc, i);
++		ret = security_gpio_line_request(dev_name(&gdev->dev), offset,
++						 flags);
++		if (ret)
++			goto out_free_linereq;
++
+ 		ret = gpiod_request_user(desc, lr->label);
+ 		if (ret)
+ 			goto out_free_linereq;
+ 
+ 		lr->lines[i].desc = desc;
+-		flags = gpio_v2_line_config_flags(lc, i);
+ 		gpio_v2_line_config_flags_to_desc_flags(flags, &desc->flags);
+ 
+ 		ret = gpiod_set_transitory(desc, false);
+diff --git a/include/linux/lsm_hook_defs.h b/include/linux/lsm_hook_defs.h
+index 8c42b4bde..0d32c051b 100644
+--- a/include/linux/lsm_hook_defs.h
++++ b/include/linux/lsm_hook_defs.h
+@@ -195,6 +195,15 @@ LSM_HOOK(int, 0, file_ioctl, struct file *file, unsigned int cmd,
+ 	 unsigned long arg)
+ LSM_HOOK(int, 0, file_ioctl_compat, struct file *file, unsigned int cmd,
+ 	 unsigned long arg)
++/* GPIO character-device operations, keyed by userspace gpiochip name/line. */
++LSM_HOOK(int, 0, gpio_line_request, const char *chip_name,
++	 unsigned int offset, u64 flags)
++LSM_HOOK(int, 0, gpio_line_config, const char *chip_name,
++	 unsigned int offset, u64 flags)
++LSM_HOOK(int, 0, gpio_line_get_value, const char *chip_name,
++	 unsigned int offset)
++LSM_HOOK(int, 0, gpio_line_set_value, const char *chip_name,
++	 unsigned int offset)
+ LSM_HOOK(int, 0, mmap_addr, unsigned long addr)
+ LSM_HOOK(int, 0, mmap_file, struct file *file, unsigned long reqprot,
+ 	 unsigned long prot, unsigned long flags)
+diff --git a/include/linux/security.h b/include/linux/security.h
+index b64598e5d..71da2a0de 100644
+--- a/include/linux/security.h
++++ b/include/linux/security.h
+@@ -476,6 +476,12 @@ void security_file_free(struct file *file);
+ int security_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+ int security_file_ioctl_compat(struct file *file, unsigned int cmd,
+ 			       unsigned long arg);
++int security_gpio_line_request(const char *chip_name, unsigned int offset,
++			       u64 flags);
++int security_gpio_line_config(const char *chip_name, unsigned int offset,
++			      u64 flags);
++int security_gpio_line_get_value(const char *chip_name, unsigned int offset);
++int security_gpio_line_set_value(const char *chip_name, unsigned int offset);
+ int security_mmap_file(struct file *file, unsigned long prot,
+ 			unsigned long flags);
+ int security_mmap_addr(unsigned long addr);
+@@ -1155,6 +1161,30 @@ static inline int security_file_ioctl_compat(struct file *file,
+ 	return 0;
+ }
+ 
++static inline int security_gpio_line_request(const char *chip_name,
++				     unsigned int offset, u64 flags)
++{
++	return 0;
++}
++
++static inline int security_gpio_line_config(const char *chip_name,
++				    unsigned int offset, u64 flags)
++{
++	return 0;
++}
++
++static inline int security_gpio_line_get_value(const char *chip_name,
++				       unsigned int offset)
++{
++	return 0;
++}
++
++static inline int security_gpio_line_set_value(const char *chip_name,
++				       unsigned int offset)
++{
++	return 0;
++}
++
+ static inline int security_mmap_file(struct file *file, unsigned long prot,
+ 				     unsigned long flags)
+ {
+diff --git a/security/Kconfig b/security/Kconfig
+index 285f284df..8eb8ed683 100644
+--- a/security/Kconfig
++++ b/security/Kconfig
+@@ -230,6 +230,7 @@ source "security/safesetid/Kconfig"
+ source "security/lockdown/Kconfig"
+ source "security/landlock/Kconfig"
+ source "security/ipe/Kconfig"
++source "security/abac/Kconfig"
+ 
+ source "security/integrity/Kconfig"
+ 
+@@ -287,4 +288,3 @@ config LSM
+ source "security/Kconfig.hardening"
+ 
+ endmenu
+-
+diff --git a/security/Makefile b/security/Makefile
+index 22ff4c8bd..bcd34f681 100644
+--- a/security/Makefile
++++ b/security/Makefile
+@@ -26,6 +26,7 @@ obj-$(CONFIG_CGROUPS)			+= device_cgroup.o
+ obj-$(CONFIG_BPF_LSM)			+= bpf/
+ obj-$(CONFIG_SECURITY_LANDLOCK)		+= landlock/
+ obj-$(CONFIG_SECURITY_IPE)		+= ipe/
++obj-$(CONFIG_SECURITY_ABAC)		+= abac/
+ 
+ # Object integrity file lists
+ obj-$(CONFIG_INTEGRITY)			+= integrity/
+diff --git a/security/abac/Kconfig b/security/abac/Kconfig
+new file mode 100644
+index 000000000..858feef47
+--- /dev/null
++++ b/security/abac/Kconfig
+@@ -0,0 +1,7 @@
++# SPDX-License-Identifier: GPL-2.0-only
++config SECURITY_ABAC
++	bool "ABAC support"
++	depends on SECURITY
++	default y
++	help
++	  This enables the Attribute-Based Access Control (ABAC) Linux Security Module (LSM).
+diff --git a/security/abac/Makefile b/security/abac/Makefile
+new file mode 100644
+index 000000000..fc91cb314
+--- /dev/null
++++ b/security/abac/Makefile
+@@ -0,0 +1,5 @@
++# SPDX-License-Identifier: GPL-2.0-only
++ccflags-y := -I$(srctree)/security/abac/include/
++obj-$(CONFIG_SECURITY_ABAC) := abac.o
++
++abac-y := avp.o abacfs.o abac.o env.o obj.o pathcfg.o policy.o resolve.o tree.o user.o
+diff --git a/security/abac/abac.c b/security/abac/abac.c
+new file mode 100644
+index 000000000..623591d64
+--- /dev/null
++++ b/security/abac/abac.c
+@@ -0,0 +1,153 @@
++/*
++	ABAC LSM hooks
++	Copyright (C) <2021>  Hariyala Omkara Naga Sai Varshith
++*/
++
++#include <linux/limits.h>
++#include <linux/string.h>
++#include <linux/types.h>
++#include <linux/binfmts.h>
++#include <linux/xattr.h>
++#include <linux/kernel_read_file.h>
++#include <linux/lsm_hooks.h>
++#include <linux/dcache.h>
++#include <linux/cred.h>
++#include <linux/slab.h>
++#include <linux/timekeeping.h>
++#include <uapi/linux/gpio.h>
++#include "abacfs.h"
++#include "resolve.h"
++
++static struct lsm_id abac_lsmid __ro_after_init = {
++	.name = "abac",
++};
++
++// File read/write hook
++static int abac_file_permission(struct file *file, int mask)
++{
++	u64 start_ns, elapsed_ns;
++	bool allowed;
++	// if the user is root, don't evaluate
++	unsigned int UID = current_uid().val;
++	if (UID < 1000) {
++		return 0;
++	}
++	char *path = NULL;
++	struct dentry *dentry = file->f_path.dentry;
++	char *buff = kmalloc(PATH_MAX, GFP_KERNEL);
++	if (!buff)
++		return -ENOMEM;
++	path = dentry_path_raw(dentry, buff, PATH_MAX);
++	if (IS_ERR(path)) {
++		kfree(buff);
++		return -EPERM;
++	}
++	// if the path is not secured, don't evaluate
++	if (!abac_path_is_covered(path)) {
++		kfree(buff);
++		return 0;
++	}
++	down_read(&abac_state_lock);
++	// if the policy is not yet initalized, DENY permission
++	if (policy == NULL || user_attr == NULL || obj_attr == NULL) {
++		up_read(&abac_state_lock);
++		kfree(buff);
++		return -EPERM;
++	}
++	start_ns = abac_recording ? ktime_get_ns() : 0;
++	allowed = abac_resolve(UID, path, mask);
++	if (abac_recording) {
++		elapsed_ns = ktime_get_ns() - start_ns;
++		abac_record_decision(ABAC_RESOURCE_FILE, elapsed_ns, allowed);
++	}
++	up_read(&abac_state_lock);
++	kfree(buff);
++	if (allowed) {
++		return 0;
++	}
++	return -EPERM;
++}
++
++static int abac_gpio_permission(const char *chip_name, unsigned int offset,
++				enum abac_op op)
++{
++	char resource_id[96];
++	u64 start_ns, elapsed_ns;
++	bool allowed;
++	unsigned int uid = current_uid().val;
++
++	if (uid < 1000)
++		return 0;
++	if (!chip_name || scnprintf(resource_id, sizeof(resource_id),
++				    "gpio/%s/%u", chip_name, offset) >=
++		    sizeof(resource_id))
++		return -EPERM;
++	down_read(&abac_state_lock);
++	if (!abac_resource_is_managed(resource_id))
++		goto allow;
++	if (!policy || !user_attr || !obj_attr)
++		goto deny;
++	start_ns = abac_recording ? ktime_get_ns() : 0;
++	allowed = abac_resolve_resource(uid, resource_id, op);
++	if (abac_recording) {
++		elapsed_ns = ktime_get_ns() - start_ns;
++		abac_record_decision(ABAC_RESOURCE_GPIO, elapsed_ns, allowed);
++	}
++	up_read(&abac_state_lock);
++	return allowed ? 0 : -EPERM;
++
++allow:
++	up_read(&abac_state_lock);
++	return 0;
++
++deny:
++	up_read(&abac_state_lock);
++	return -EPERM;
++}
++
++static int abac_gpio_line_request(const char *chip_name, unsigned int offset,
++				  u64 flags)
++{
++	return abac_gpio_permission(chip_name, offset,
++			(flags & GPIO_V2_LINE_FLAG_OUTPUT) ? ABAC_MODIFY : ABAC_READ);
++}
++
++static int abac_gpio_line_config(const char *chip_name, unsigned int offset,
++				 u64 flags)
++{
++	return abac_gpio_permission(chip_name, offset,
++			(flags & GPIO_V2_LINE_FLAG_OUTPUT) ? ABAC_MODIFY : ABAC_READ);
++}
++
++static int abac_gpio_line_get_value(const char *chip_name, unsigned int offset)
++{
++	return abac_gpio_permission(chip_name, offset, ABAC_READ);
++}
++
++static int abac_gpio_line_set_value(const char *chip_name, unsigned int offset)
++{
++	return abac_gpio_permission(chip_name, offset, ABAC_MODIFY);
++}
++
++// The hooks we wish to be installed.
++static struct security_hook_list abac_hooks[] __ro_after_init = {
++	LSM_HOOK_INIT(file_permission, abac_file_permission),
++	LSM_HOOK_INIT(gpio_line_request, abac_gpio_line_request),
++	LSM_HOOK_INIT(gpio_line_config, abac_gpio_line_config),
++	LSM_HOOK_INIT(gpio_line_get_value, abac_gpio_line_get_value),
++	LSM_HOOK_INIT(gpio_line_set_value, abac_gpio_line_set_value),
++};
++
++// Initialize our module.
++static int __init abac_init(void)
++{
++	security_add_hooks(abac_hooks, ARRAY_SIZE(abac_hooks), &abac_lsmid);
++	printk(KERN_INFO
++	       "ABAC LSM: Initialized.\n Protected files are selected by ABAC include/exclude path rules.\n");
++	return 0;
++}
++
++DEFINE_LSM(abac) = {
++	.name = "abac",
++	.init = abac_init,
++};
+diff --git a/security/abac/abacfs.c b/security/abac/abacfs.c
+new file mode 100644
+index 000000000..e143a8cc8
+--- /dev/null
++++ b/security/abac/abacfs.c
+@@ -0,0 +1,741 @@
++/*
++	ABAC securityFS system calls
++	Copyright (C) <2021>  Hariyala Omkara Naga Sai Varshith
++*/
++
++#include "abacfs.h"
++#include "pathcfg.h"
++#include "resolve.h"
++#include <linux/fs.h>
++#include <linux/init.h>
++#include <linux/security.h>
++#include <linux/slab.h>
++#include <linux/string.h>
++#include <linux/timekeeping.h>
++#include <linux/uaccess.h>
++
++// const size_t MAX_FILE_SIZE = 65536; // 64Kb
++const size_t MAX_FILE_SIZE = 16777216; // 16MB
++
++struct dentry *abacfs;
++struct dentry *policy_file;
++struct dentry *user_attr_file;
++struct dentry *obj_attr_file;
++struct dentry *env_attr_file;
++struct dentry *env_status_file;
++struct dentry *action_file;
++struct dentry *perf_file;
++struct dentry *stats_file;
++struct dentry *mode_file;
++struct dentry *hashmap_file;
++struct dentry *include_paths_file;
++struct dentry *exclude_paths_file;
++
++char *policy_buf = NULL;
++char *user_attr_buf = NULL;
++char *obj_attr_buf = NULL;
++char *env_attr_buf = NULL;
++char *include_paths_buf = NULL;
++char *exclude_paths_buf = NULL;
++
++abac_policy *policy = NULL;
++abac_user *user_attr = NULL;
++abac_obj *obj_attr = NULL;
++avp *env_attr = NULL;
++DECLARE_RWSEM(abac_state_lock);
++u64 abac_env_generation;
++u64 abac_env_last_update_ns;
++enum abac_resolve_mode abac_mode = ABAC_RESOLVE_TREE;
++bool abac_use_hashmap;
++int abac_recording;
++struct abac_perf_stats abac_stats;
++struct abac_path_entry *abac_include_paths = NULL;
++struct abac_path_entry *abac_exclude_paths = NULL;
++
++void abac_reset_perf_stats(void)
++{
++	memset(&abac_stats, 0, sizeof(abac_stats));
++}
++
++void abac_record_decision(enum abac_resource_class resource, u64 elapsed_ns,
++			  bool allowed)
++{
++	abac_stats.prev_access_time_ns = elapsed_ns;
++	abac_stats.total_time_ns += elapsed_ns;
++	abac_stats.decision_count++;
++	if (resource == ABAC_RESOURCE_FILE)
++		abac_stats.file_decision_count++;
++	else if (resource == ABAC_RESOURCE_GPIO)
++		abac_stats.gpio_decision_count++;
++	if (abac_stats.min_time_ns == 0 || elapsed_ns < abac_stats.min_time_ns)
++		abac_stats.min_time_ns = elapsed_ns;
++	if (elapsed_ns > abac_stats.max_time_ns)
++		abac_stats.max_time_ns = elapsed_ns;
++	if (allowed)
++		abac_stats.allow_count++;
++	else
++		abac_stats.deny_count++;
++}
++
++bool abac_path_is_covered(const char *path)
++{
++	bool included = true;
++
++	if (!path || path[0] != '/')
++		return false;
++	if (abac_include_paths)
++		included = path_matches_entries(path, abac_include_paths);
++	if (!included)
++		return false;
++	if (abac_exclude_paths && path_matches_entries(path, abac_exclude_paths))
++		return false;
++	return true;
++}
++
++// method for opening policy file
++static int abac_open(struct inode *i, struct file *f)
++{
++	// TODO: Add a check to let only the root access the policy file
++	return 0;
++}
++
++/* Userspace emits this only when an otherwise-empty JSON section is reloaded. */
++static bool abac_clear_request(const char *buffer, size_t len)
++{
++	return len == 6 && !memcmp(buffer, "CLEAR\n", len);
++}
++
++// method for writing to policy file
++static ssize_t policy_write(struct file *filp, const char __user *buffer,
++			    size_t len, loff_t *off)
++{
++	char *new_buf;
++	abac_policy *new_policy;
++	abac_policy *old_policy;
++	char *old_buf;
++
++	if (len >= MAX_FILE_SIZE) {
++		printk(KERN_INFO
++		       "Write failed. Buffer too large %zu. Maximum Policy file size is %zu\n",
++		       len, MAX_FILE_SIZE);
++		return -EFAULT;
++	}
++	new_buf = memdup_user_nul(buffer, len);
++	if (IS_ERR(new_buf)) {
++		printk(KERN_INFO
++		       "Write failed. Failed to allocate memory for policy buffer\n");
++		return PTR_ERR(new_buf);
++	}
++	new_policy = abac_clear_request(new_buf, len) ? NULL :
++		parse_policy(new_buf, len);
++	printk("Policy written to buffer. Attempting to parse...");
++	down_write(&abac_state_lock);
++	old_policy = policy;
++	old_buf = policy_buf;
++	policy = new_policy;
++	policy_buf = new_buf;
++	up_write(&abac_state_lock);
++	destroy_policy(old_policy);
++	kfree(old_buf);
++	// print_abac_policy(policy);
++	printk("Policy loaded");
++	return len;
++}
++
++// method for reading from policy file
++static ssize_t policy_read(struct file *filp, char __user *buffer, size_t len,
++			   loff_t *off)
++{
++	ssize_t result;
++	int policy_buf_len;
++
++	down_read(&abac_state_lock);
++	if (!policy_buf) {
++		up_read(&abac_state_lock);
++		return -EFAULT;
++	}
++	/*
++static int finished = 0;
++if (finished) {
++    finished = 0;
++    return 0;
++}
++finished = 1;
++*/
++
++	policy_buf_len = strlen(policy_buf);
++	if (copy_to_user(buffer, policy_buf, policy_buf_len) != 0) {
++		printk(KERN_INFO "Read from policy failed\n");
++		result = -EFAULT;
++	} else {
++		result = policy_buf_len;
++	}
++	up_read(&abac_state_lock);
++	return result;
++}
++
++// method for writing to user_attrs file
++static ssize_t user_attr_write(struct file *filp, const char __user *buffer,
++			       size_t len, loff_t *off)
++{
++	char *new_buf;
++	abac_user *new_user_attr;
++	abac_user *old_user_attr;
++	char *old_buf;
++	if (len >= MAX_FILE_SIZE) {
++		printk(KERN_INFO
++		       "Write failed. Buffer too large %zu. Maximum file size is %zu\n",
++		       len, MAX_FILE_SIZE);
++		return -EFAULT;
++	}
++	new_buf = memdup_user_nul(buffer, len);
++	if (IS_ERR(new_buf)) {
++		printk(KERN_INFO
++		       "Write failed. Failed to allocate memory for user attributes buffer\n");
++		return PTR_ERR(new_buf);
++	}
++	new_user_attr = abac_clear_request(new_buf, len) ? NULL :
++		parse_user_attr(new_buf, len);
++	printk("User attributes written to buffer. Attempting to parse...");
++	down_write(&abac_state_lock);
++	abac_destroy_lookup_maps();
++	old_user_attr = user_attr;
++	old_buf = user_attr_buf;
++	user_attr = new_user_attr;
++	user_attr_buf = new_buf;
++	abac_rebuild_lookup_maps();
++	up_write(&abac_state_lock);
++	destroy_user_list(old_user_attr);
++	kfree(old_buf);
++	//print_user_attrs(user_attr);
++	printk("User attributes loaded");
++	return len;
++}
++
++// method for writing to obj_attrs file
++static ssize_t obj_attr_write(struct file *filp, const char __user *buffer,
++			      size_t len, loff_t *off)
++{
++	char *new_buf;
++	abac_obj *new_obj_attr;
++	abac_obj *old_obj_attr;
++	char *old_buf;
++	if (len >= MAX_FILE_SIZE) {
++		printk(KERN_INFO
++		       "Write failed. Buffer too large %zu. Maximum file size is %zu\n",
++		       len, MAX_FILE_SIZE);
++		return -EFAULT;
++	}
++	new_buf = memdup_user_nul(buffer, len);
++	if (IS_ERR(new_buf)) {
++		printk(KERN_INFO
++		       "Write failed. Failed to allocate memory for object "
++		       "attributes buffer\n");
++		return PTR_ERR(new_buf);
++	}
++	new_obj_attr = abac_clear_request(new_buf, len) ? NULL :
++		parse_obj_attr(new_buf, len);
++	printk("Object attributes written to buffer. Attempting to parse...");
++	down_write(&abac_state_lock);
++	abac_destroy_lookup_maps();
++	old_obj_attr = obj_attr;
++	old_buf = obj_attr_buf;
++	obj_attr = new_obj_attr;
++	obj_attr_buf = new_buf;
++	abac_rebuild_lookup_maps();
++	up_write(&abac_state_lock);
++	destroy_obj_list(old_obj_attr);
++	kfree(old_buf);
++	//print_obj_attrs(obj_attr);
++	printk("Object attributes loaded");
++	return len;
++}
++
++// method for writing to env_attrs file
++static ssize_t env_attr_write(struct file *filp, const char __user *buffer,
++			      size_t len, loff_t *off)
++{
++	char *new_buf;
++	avp *new_env_attr;
++	avp *old_env_attr;
++	char *old_buf;
++	if (len >= MAX_FILE_SIZE) {
++		printk(KERN_INFO
++		       "Write failed. Buffer too large %zu. Maximum file size is %zu\n",
++		       len, MAX_FILE_SIZE);
++		return -EFAULT;
++	}
++	new_buf = memdup_user_nul(buffer, len);
++	if (IS_ERR(new_buf)) {
++		printk(KERN_INFO
++		       "Write failed. Failed to allocate memory for environment "
++		       "attributes buffer\n");
++		return PTR_ERR(new_buf);
++	}
++	new_env_attr = abac_clear_request(new_buf, len) ? NULL :
++		parse_env_attr(new_buf, len);
++	printk("Environment attributes written to buffer. Attempting to parse...");
++	down_write(&abac_state_lock);
++	old_env_attr = env_attr;
++	old_buf = env_attr_buf;
++	env_attr = new_env_attr;
++	env_attr_buf = new_buf;
++	abac_env_generation++;
++	abac_env_last_update_ns = ktime_get_ns();
++	up_write(&abac_state_lock);
++	destroy_avp_list(old_env_attr);
++	kfree(old_buf);
++	//print_env_attrs(env_attr);
++	printk("Environment attributes loaded");
++	return len;
++}
++
++static const struct file_operations policy_fops = {
++	.open = abac_open,
++	.read = policy_read,
++	.write = policy_write,
++};
++
++static const struct file_operations user_attr_fops = {
++	.open = abac_open,
++	.write = user_attr_write,
++};
++
++static const struct file_operations obj_attr_fops = {
++	.open = abac_open,
++	.write = obj_attr_write,
++};
++
++static const struct file_operations env_attr_fops = {
++	.open = abac_open,
++	.write = env_attr_write,
++};
++
++static ssize_t env_status_read(struct file *filp, char __user *buffer,
++			       size_t len, loff_t *off)
++{
++	char out[96];
++	int out_len;
++
++	down_read(&abac_state_lock);
++	out_len = scnprintf(out, sizeof(out), "generation=%llu\nlast_update_ns=%llu\n",
++			    abac_env_generation, abac_env_last_update_ns);
++	up_read(&abac_state_lock);
++	return simple_read_from_buffer(buffer, len, off, out, out_len);
++}
++
++static const struct file_operations env_status_fops = {
++	.open = abac_open,
++	.read = env_status_read,
++};
++
++static ssize_t include_paths_write(struct file *filp,
++				   const char __user *buffer,
++				   size_t len, loff_t *off)
++{
++	if (len >= MAX_FILE_SIZE)
++		return -EFAULT;
++	if (include_paths_buf) {
++		destroy_path_entries(abac_include_paths);
++		kfree(include_paths_buf);
++		abac_include_paths = NULL;
++	}
++	include_paths_buf = kmalloc(len + 1, GFP_KERNEL);
++	if (!include_paths_buf)
++		return -EFAULT;
++	if (copy_from_user(include_paths_buf, buffer, len))
++		return -EFAULT;
++	include_paths_buf[len] = '\0';
++	abac_include_paths = parse_path_entries(include_paths_buf, len);
++	return len;
++}
++
++static ssize_t exclude_paths_write(struct file *filp,
++				   const char __user *buffer,
++				   size_t len, loff_t *off)
++{
++	if (len >= MAX_FILE_SIZE)
++		return -EFAULT;
++	if (exclude_paths_buf) {
++		destroy_path_entries(abac_exclude_paths);
++		kfree(exclude_paths_buf);
++		abac_exclude_paths = NULL;
++	}
++	exclude_paths_buf = kmalloc(len + 1, GFP_KERNEL);
++	if (!exclude_paths_buf)
++		return -EFAULT;
++	if (copy_from_user(exclude_paths_buf, buffer, len))
++		return -EFAULT;
++	exclude_paths_buf[len] = '\0';
++	abac_exclude_paths = parse_path_entries(exclude_paths_buf, len);
++	return len;
++}
++
++static ssize_t include_paths_read(struct file *filp, char __user *buffer,
++				  size_t len, loff_t *off)
++{
++	if (!include_paths_buf)
++		return 0;
++	return simple_read_from_buffer(buffer, len, off, include_paths_buf,
++				       strlen(include_paths_buf));
++}
++
++static ssize_t exclude_paths_read(struct file *filp, char __user *buffer,
++				  size_t len, loff_t *off)
++{
++	if (!exclude_paths_buf)
++		return 0;
++	return simple_read_from_buffer(buffer, len, off, exclude_paths_buf,
++				       strlen(exclude_paths_buf));
++}
++
++static ssize_t action_write(struct file *filp, const char __user *buffer,
++			    size_t len, loff_t *off)
++{
++	char cmd[32];
++	size_t copy_len = min(len, sizeof(cmd) - 1);
++
++	if (copy_from_user(cmd, buffer, copy_len))
++		return -EFAULT;
++	cmd[copy_len] = '\0';
++	if (copy_len > 0 && cmd[copy_len - 1] == '\n')
++		cmd[copy_len - 1] = '\0';
++
++	if (strcmp(cmd, "RECORD") == 0) {
++		abac_recording = 1;
++		return len;
++	}
++	if (strcmp(cmd, "STOP") == 0) {
++		abac_recording = 0;
++		return len;
++	}
++	if (strcmp(cmd, "RESET") == 0) {
++		abac_reset_perf_stats();
++		return len;
++	}
++	return -EINVAL;
++}
++
++static ssize_t perf_read(struct file *filp, char __user *buffer, size_t len,
++			 loff_t *off)
++{
++	char out[32];
++	int out_len;
++
++	out_len = scnprintf(out, sizeof(out), "%llu\n",
++			    abac_stats.prev_access_time_ns);
++	return simple_read_from_buffer(buffer, len, off, out, out_len);
++}
++
++static ssize_t stats_read(struct file *filp, char __user *buffer, size_t len,
++			  loff_t *off)
++{
++	char out[384];
++	int out_len;
++
++	out_len = scnprintf(out, sizeof(out),
++			    "decision_count=%llu\nallow_count=%llu\ndeny_count=%llu\ntotal_time_ns=%llu\nmin_time_ns=%llu\nmax_time_ns=%llu\nprev_access_time_ns=%llu\nfile_decision_count=%llu\ngpio_decision_count=%llu\n",
++			    abac_stats.decision_count, abac_stats.allow_count,
++			    abac_stats.deny_count, abac_stats.total_time_ns,
++			    abac_stats.min_time_ns, abac_stats.max_time_ns,
++			    abac_stats.prev_access_time_ns, abac_stats.file_decision_count,
++			    abac_stats.gpio_decision_count);
++	return simple_read_from_buffer(buffer, len, off, out, out_len);
++}
++
++static ssize_t mode_read(struct file *filp, char __user *buffer, size_t len,
++			 loff_t *off)
++{
++	const char *mode = abac_mode == ABAC_RESOLVE_LINEAR ? "linear\n" :
++							      "tree\n";
++	return simple_read_from_buffer(buffer, len, off, mode, strlen(mode));
++}
++
++static ssize_t mode_write(struct file *filp, const char __user *buffer,
++			  size_t len, loff_t *off)
++{
++	char mode[16];
++	size_t copy_len = min(len, sizeof(mode) - 1);
++
++	if (copy_from_user(mode, buffer, copy_len))
++		return -EFAULT;
++	mode[copy_len] = '\0';
++	if (copy_len > 0 && mode[copy_len - 1] == '\n')
++		mode[copy_len - 1] = '\0';
++
++	if (strcmp(mode, "linear") == 0) {
++		abac_mode = ABAC_RESOLVE_LINEAR;
++		return len;
++	}
++	if (strcmp(mode, "tree") == 0) {
++		abac_mode = ABAC_RESOLVE_TREE;
++		return len;
++	}
++	return -EINVAL;
++}
++
++static const struct file_operations action_fops = {
++	.open = abac_open,
++	.write = action_write,
++};
++
++static const struct file_operations perf_fops = {
++	.open = abac_open,
++	.read = perf_read,
++};
++
++static const struct file_operations stats_fops = {
++	.open = abac_open,
++	.read = stats_read,
++};
++
++static const struct file_operations mode_fops = {
++	.open = abac_open,
++	.read = mode_read,
++	.write = mode_write,
++};
++
++static ssize_t hashmap_read(struct file *filp, char __user *buffer, size_t len,
++			    loff_t *off)
++{
++	const char *state = abac_use_hashmap ? "on\n" : "off\n";
++
++	return simple_read_from_buffer(buffer, len, off, state, strlen(state));
++}
++
++static ssize_t hashmap_write(struct file *filp, const char __user *buffer,
++			     size_t len, loff_t *off)
++{
++	char state[16];
++	size_t copy_len = min(len, sizeof(state) - 1);
++
++	if (copy_from_user(state, buffer, copy_len))
++		return -EFAULT;
++	state[copy_len] = '\0';
++	if (copy_len > 0 && state[copy_len - 1] == '\n')
++		state[copy_len - 1] = '\0';
++
++	if (strcmp(state, "on") == 0 || strcmp(state, "1") == 0 ||
++	    strcmp(state, "enabled") == 0) {
++		abac_use_hashmap = true;
++		return len;
++	}
++	if (strcmp(state, "off") == 0 || strcmp(state, "0") == 0 ||
++	    strcmp(state, "disabled") == 0) {
++		abac_use_hashmap = false;
++		return len;
++	}
++	return -EINVAL;
++}
++
++static const struct file_operations hashmap_fops = {
++	.open = abac_open,
++	.read = hashmap_read,
++	.write = hashmap_write,
++};
++
++static const struct file_operations include_paths_fops = {
++	.open = abac_open,
++	.read = include_paths_read,
++	.write = include_paths_write,
++};
++
++static const struct file_operations exclude_paths_fops = {
++	.open = abac_open,
++	.read = exclude_paths_read,
++	.write = exclude_paths_write,
++};
++
++static void destroy_abac_fs(void)
++{
++	if (policy_file) {
++		securityfs_remove(policy_file);
++	}
++	if (user_attr_file) {
++		securityfs_remove(user_attr_file);
++	}
++	if (obj_attr_file) {
++		securityfs_remove(obj_attr_file);
++	}
++	if (env_attr_file) {
++		securityfs_remove(env_attr_file);
++	}
++	if (env_status_file) {
++		securityfs_remove(env_status_file);
++	}
++	if (action_file) {
++		securityfs_remove(action_file);
++	}
++	if (perf_file) {
++		securityfs_remove(perf_file);
++	}
++	if (stats_file) {
++		securityfs_remove(stats_file);
++	}
++	if (mode_file) {
++		securityfs_remove(mode_file);
++	}
++	if (hashmap_file) {
++		securityfs_remove(hashmap_file);
++	}
++	if (include_paths_file) {
++		securityfs_remove(include_paths_file);
++	}
++	if (exclude_paths_file) {
++		securityfs_remove(exclude_paths_file);
++	}
++	if (abacfs) {
++		securityfs_remove(abacfs);
++	}
++}
++
++/* create the abac filesystem */
++static int __init abac_create_fs(void)
++{
++	// create the root 'abac' directory
++	abacfs = securityfs_create_dir("abac", NULL);
++	if (!abacfs) {
++		printk(KERN_ERR "ABAC LSM: Failed to create abac securityfs "
++				"/sys/kernel/security/abac/");
++		destroy_abac_fs();
++		return -ENOMEM;
++	}
++
++	// create the policy file
++	policy_file = securityfs_create_file("policy", 0666, abacfs, NULL,
++					     &policy_fops);
++	if (!policy_file) {
++		printk(KERN_ERR
++		       "ABAC LSM: Failed to create file /sys/kernel/security/abac/policy");
++		destroy_abac_fs();
++		return -ENOMEM;
++	}
++	printk(KERN_INFO
++	       "ABAC LSM: Created file /sys/kernel/security/abac/policy");
++
++	// create the user attributes file
++	user_attr_file = securityfs_create_file("user_attr", 0666, abacfs, NULL,
++						&user_attr_fops);
++	if (!user_attr_file) {
++		printk(KERN_ERR
++		       "ABAC LSM: Failed to create file /sys/kernel/security/abac/user_attr");
++		destroy_abac_fs();
++		return -ENOMEM;
++	}
++	printk(KERN_INFO
++	       "ABAC LSM: Created file /sys/kernel/security/abac/user_attr");
++
++	// create the object attributes file
++	obj_attr_file = securityfs_create_file("obj_attr", 0666, abacfs, NULL,
++					       &obj_attr_fops);
++	if (!obj_attr_file) {
++		printk(KERN_ERR
++		       "ABAC LSM: Failed to create file /sys/kernel/security/abac/obj_attr");
++		destroy_abac_fs();
++		return -ENOMEM;
++	}
++	printk(KERN_INFO
++	       "ABAC LSM: Created file /sys/kernel/security/abac/obj_attr");
++
++	// create the environment attributes file
++	env_attr_file = securityfs_create_file("env_attr", 0666, abacfs, NULL,
++					       &env_attr_fops);
++	if (!env_attr_file) {
++		printk(KERN_ERR
++		       "ABAC LSM: Failed to create file /sys/kernel/security/abac/env_attr");
++		destroy_abac_fs();
++		return -ENOMEM;
++	}
++	printk(KERN_INFO
++	       "ABAC LSM: Created file /sys/kernel/security/abac/env_attr");
++	env_status_file = securityfs_create_file("env_status", 0444, abacfs, NULL,
++						 &env_status_fops);
++	if (!env_status_file) {
++		printk(KERN_ERR "ABAC LSM: Failed to create env_status");
++		destroy_abac_fs();
++		return -ENOMEM;
++	}
++
++	action_file = securityfs_create_file("action", 0666, abacfs, NULL,
++					     &action_fops);
++	if (!action_file) {
++		printk(KERN_ERR
++		       "ABAC LSM: Failed to create file /sys/kernel/security/abac/action");
++		destroy_abac_fs();
++		return -ENOMEM;
++	}
++	printk(KERN_INFO
++	       "ABAC LSM: Created file /sys/kernel/security/abac/action");
++
++	perf_file = securityfs_create_file("perf", 0444, abacfs, NULL,
++					   &perf_fops);
++	if (!perf_file) {
++		printk(KERN_ERR
++		       "ABAC LSM: Failed to create file /sys/kernel/security/abac/perf");
++		destroy_abac_fs();
++		return -ENOMEM;
++	}
++	printk(KERN_INFO
++	       "ABAC LSM: Created file /sys/kernel/security/abac/perf");
++
++	stats_file = securityfs_create_file("stats", 0444, abacfs, NULL,
++					    &stats_fops);
++	if (!stats_file) {
++		printk(KERN_ERR
++		       "ABAC LSM: Failed to create file /sys/kernel/security/abac/stats");
++		destroy_abac_fs();
++		return -ENOMEM;
++	}
++	printk(KERN_INFO
++	       "ABAC LSM: Created file /sys/kernel/security/abac/stats");
++
++	mode_file = securityfs_create_file("mode", 0666, abacfs, NULL,
++					   &mode_fops);
++	if (!mode_file) {
++		printk(KERN_ERR
++		       "ABAC LSM: Failed to create file /sys/kernel/security/abac/mode");
++		destroy_abac_fs();
++		return -ENOMEM;
++	}
++	printk(KERN_INFO
++	       "ABAC LSM: Created file /sys/kernel/security/abac/mode");
++
++	hashmap_file = securityfs_create_file("hashmap", 0666, abacfs, NULL,
++					      &hashmap_fops);
++	if (!hashmap_file) {
++		printk(KERN_ERR
++		       "ABAC LSM: Failed to create file /sys/kernel/security/abac/hashmap");
++		destroy_abac_fs();
++		return -ENOMEM;
++	}
++	printk(KERN_INFO
++	       "ABAC LSM: Created file /sys/kernel/security/abac/hashmap");
++
++	include_paths_file = securityfs_create_file("include_paths", 0666, abacfs,
++						    NULL, &include_paths_fops);
++	if (!include_paths_file) {
++		printk(KERN_ERR
++		       "ABAC LSM: Failed to create file /sys/kernel/security/abac/include_paths");
++		destroy_abac_fs();
++		return -ENOMEM;
++	}
++	printk(KERN_INFO
++	       "ABAC LSM: Created file /sys/kernel/security/abac/include_paths");
++
++	exclude_paths_file = securityfs_create_file("exclude_paths", 0666, abacfs,
++						    NULL, &exclude_paths_fops);
++	if (!exclude_paths_file) {
++		printk(KERN_ERR
++		       "ABAC LSM: Failed to create file /sys/kernel/security/abac/exclude_paths");
++		destroy_abac_fs();
++		return -ENOMEM;
++	}
++	printk(KERN_INFO
++	       "ABAC LSM: Created file /sys/kernel/security/abac/exclude_paths");
++
++	abac_reset_perf_stats();
++	printk(KERN_INFO "ABAC LSM: Securityfs Initialized");
++	return 0;
++}
++
++fs_initcall(abac_create_fs);
+diff --git a/security/abac/avp.c b/security/abac/avp.c
+new file mode 100644
+index 000000000..640bde45a
+--- /dev/null
++++ b/security/abac/avp.c
+@@ -0,0 +1,88 @@
++/*
++	ABAC AVP parsing methods
++	Copyright (C) <2021>  Hariyala Omkara Naga Sai Varshith
++*/
++
++#include <linux/string.h>
++#include <linux/slab.h>
++#include "avp.h"
++
++void destroy_avp_list(avp *head) 
++{
++	// Free the avp linked list given by head
++	avp* cursor = head;
++	avp* to_free = NULL;
++	while (cursor != NULL) {
++		kfree(cursor->name);
++		kfree(cursor->value);
++		to_free = cursor;
++		cursor = cursor->next;
++		if (to_free) kfree(to_free);
++	}
++}
++
++int findidx(char *buffer, char ch, int start, int end)
++{
++	// Find the index of first occurance of ch in buffer between start and end (excluding end)
++	int i = start;
++	for (i = start; i < end; i++) {
++		if (buffer[i] == ch)
++			return i;
++	}
++	return -1;
++}
++
++avp *parse_avp(char *buffer, int start, int end)
++{
++	// Parse a single attribute-value pair separated by =
++	// Example: Designation=Professor
++	int i;
++	int pair_delim = findidx(buffer, '=', start, end);
++	char *name = kcalloc(pair_delim - start, sizeof(char), GFP_KERNEL);
++	int j = 0;
++	for (i = start; i < pair_delim; i++) {
++		name[j++] = buffer[i];
++	}
++	name[j] = '\0';
++	char *value = kcalloc(end - pair_delim, sizeof(char), GFP_KERNEL);
++	j = 0;
++	for (i = pair_delim + 1; i < end; i++) {
++		value[j++] = buffer[i];
++	}
++	value[j] = '\0';
++	avp *p = kcalloc(1, sizeof(avp), GFP_KERNEL);
++	p->name = name;
++	p->value = value;
++	p->next = NULL;
++	return p;
++}
++
++avp *parse_avp_section(char *buffer, int start, int end)
++{
++	// Parse the string between | delimiters
++	// Example: Designation=Professor,Department=CSE
++	int _start = start;
++	int delim = findidx(buffer, ',', _start, end);
++	avp *cursor, *head;
++	cursor = NULL;
++	head = NULL;
++	while (delim != -1 && _start < end) {
++		if (cursor) {
++			cursor->next = parse_avp(buffer, _start, delim);
++			cursor = cursor->next;
++		} else {
++			head = parse_avp(buffer, _start, delim);
++			cursor = head;
++		}
++		_start = delim + 1;
++		delim = findidx(buffer, ',', _start, end);
++	}
++	// if there was more than one avp, then there will be one more avp between the last , and |
++	if (cursor) {
++		cursor->next = parse_avp(buffer, _start, end);
++	} else {
++		head = parse_avp(buffer, _start, end);
++		cursor = head;
++	}
++	return head;
++}
+diff --git a/security/abac/env.c b/security/abac/env.c
+new file mode 100644
+index 000000000..8fd779bea
+--- /dev/null
++++ b/security/abac/env.c
+@@ -0,0 +1,55 @@
++/*
++	ABAC environmental attribute parsing methods
++	Copyright (C) <2021>  Hariyala Omkara Naga Sai Varshith
++*/
++
++#include <linux/string.h>
++#include <linux/kernel.h>
++#include <linux/slab.h>
++#include "env.h"
++
++avp *parse_env_attr(char *buffer, int length)
++{
++	/*
++     * Parse environment attributes buffer
++     * Buffer format
++     * <env_attr_1>=<val1>
++     * <env_attr_2>=<val1>
++     */
++	if (buffer == NULL || length < 1) {
++		return NULL;
++	}
++	int i, end, start;
++	start = 0;
++	avp *head, *cursor;
++	head = NULL;
++	cursor = NULL;
++	for (i = 0; i < length; i++) {
++		if (buffer[i] == '\n') {
++			end = i;
++			if (cursor) {
++				cursor->next = parse_avp(buffer, start, end);
++				cursor = cursor->next;
++			} else {
++				head = parse_avp(buffer, start, end);
++				cursor = head;
++			}
++			start = i + 1;
++		}
++	}
++	return head;
++}
++
++void print_env_attrs(avp *head)
++{
++	if (head == NULL) {
++		return;
++	}
++	avp *cursor;
++	cursor = head;
++	printk("Environment Attributes");
++	while (cursor != NULL) {
++		printk("%s=%s", cursor->name, cursor->value);
++		cursor = cursor->next;
++	}
++}
+diff --git a/security/abac/include/abacfs.h b/security/abac/include/abacfs.h
+new file mode 100644
+index 000000000..71f69ffd6
+--- /dev/null
++++ b/security/abac/include/abacfs.h
+@@ -0,0 +1,64 @@
++/*
++	Definitions for ABAC Securityfs structures and methods
++	Copyright (C) <2021>  Hariyala Omkara Naga Sai Varshith
++*/
++
++#ifndef _ABAC_FS_H_
++#define _ABAC_FS_H_
++
++#include "avp.h"
++#include "env.h"
++#include "obj.h"
++#include "policy.h"
++#include "user.h"
++#include <linux/rwsem.h>
++#include <linux/types.h>
++
++/* Pointer to the abac policy. Initialized in abacfs */
++extern abac_policy *policy;
++
++/* Pointer to the user attribute list. Initialized in abacfs */
++extern abac_user *user_attr;
++
++/* Pointer to the object attribute list. Initialized in abacfs */
++extern abac_obj *obj_attr;
++
++/* Pointer to the environment attribute list. Initialized in abacfs */
++extern avp *env_attr;
++
++/* Authorization readers and securityfs configuration writers share this. */
++extern struct rw_semaphore abac_state_lock;
++
++enum abac_resolve_mode { ABAC_RESOLVE_LINEAR, ABAC_RESOLVE_TREE };
++enum abac_resource_class { ABAC_RESOURCE_FILE, ABAC_RESOURCE_GPIO };
++
++struct abac_perf_stats {
++	u64 total_time_ns;
++	u64 min_time_ns;
++	u64 max_time_ns;
++	u64 decision_count;
++	u64 allow_count;
++	u64 deny_count;
++	u64 prev_access_time_ns;
++	u64 file_decision_count;
++	u64 gpio_decision_count;
++};
++
++struct abac_path_entry {
++	char *path;
++	struct abac_path_entry *next;
++};
++
++extern enum abac_resolve_mode abac_mode;
++extern bool abac_use_hashmap;
++extern int abac_recording;
++extern struct abac_perf_stats abac_stats;
++extern struct abac_path_entry *abac_include_paths;
++extern struct abac_path_entry *abac_exclude_paths;
++
++void abac_reset_perf_stats(void);
++void abac_record_decision(enum abac_resource_class resource, u64 elapsed_ns,
++			  bool allowed);
++bool abac_path_is_covered(const char *path);
++
++#endif /* _ABAC_FS_H */
+diff --git a/security/abac/include/avp.h b/security/abac/include/avp.h
+new file mode 100644
+index 000000000..a8ca90201
+--- /dev/null
++++ b/security/abac/include/avp.h
+@@ -0,0 +1,21 @@
++/*
++	Definitions for Attribute Value Pair (AVP) strctures and methods
++	Copyright (C) <2021>  Hariyala Omkara Naga Sai Varshith
++*/
++
++#ifndef _ABAC_AVP_H
++#define _ABAC_AVP_H
++
++typedef struct avp avp;
++struct avp {
++    char *name;
++    char *value;
++    avp *next;
++};
++
++int findidx(char *, char, int, int);
++avp *parse_avp(char *, int, int);
++avp *parse_avp_section(char *, int, int);
++void destroy_avp_list(avp *head);
++
++#endif /* _ABAC_AVP_H */
+diff --git a/security/abac/include/env.h b/security/abac/include/env.h
+new file mode 100644
+index 000000000..ece927b93
+--- /dev/null
++++ b/security/abac/include/env.h
+@@ -0,0 +1,13 @@
++/*
++	Definitions for ABAC Environmental Attribute parsing methods
++	Copyright (C) <2021>  Hariyala Omkara Naga Sai Varshith
++*/
++
++#ifndef _ABAC_ENV_H
++#define _ABAC_ENV_H
++#include "avp.h"
++
++avp *parse_env_attr(char *, int);
++void print_env_attrs(avp *);
++
++#endif /* _ABAC_ENV_H */
+diff --git a/security/abac/include/obj.h b/security/abac/include/obj.h
+new file mode 100644
+index 000000000..1ca051104
+--- /dev/null
++++ b/security/abac/include/obj.h
+@@ -0,0 +1,25 @@
++/*
++	Definitions for ABAC Object Attribute structures and methods
++	Copyright (C) <2021>  Hariyala Omkara Naga Sai Varshith
++*/
++
++#ifndef _ABAC_OBJ_H
++#define _ABAC_OBJ_H
++
++#include "avp.h"
++#include <linux/limits.h>
++#include <linux/list.h>
++
++typedef struct abac_obj abac_obj;
++struct abac_obj {
++    char path[PATH_MAX];
++    avp *attrs;
++    struct hlist_node hnode;
++    abac_obj *next;
++};
++
++abac_obj *parse_obj_attr(char *, int);
++void print_obj_attrs(abac_obj *);
++void destroy_obj_list(abac_obj *);
++
++#endif /* _ABAC_OBJ_H */
+diff --git a/security/abac/include/pathcfg.h b/security/abac/include/pathcfg.h
+new file mode 100644
+index 000000000..3be95e399
+--- /dev/null
++++ b/security/abac/include/pathcfg.h
+@@ -0,0 +1,14 @@
++/*
++	Definitions for ABAC include/exclude path configuration
++*/
++
++#ifndef _ABAC_PATHCFG_H
++#define _ABAC_PATHCFG_H
++
++#include "abacfs.h"
++
++struct abac_path_entry *parse_path_entries(char *buffer, int length);
++void destroy_path_entries(struct abac_path_entry *head);
++bool path_matches_entries(const char *path, struct abac_path_entry *head);
++
++#endif /* _ABAC_PATHCFG_H */
+diff --git a/security/abac/include/policy.h b/security/abac/include/policy.h
+new file mode 100644
+index 000000000..8823f0004
+--- /dev/null
++++ b/security/abac/include/policy.h
+@@ -0,0 +1,47 @@
++/*
++	Definitions for ABAC Policy structures and methods
++	Copyright (C) <2021>  Hariyala Omkara Naga Sai Varshith
++*/
++
++#ifndef _ABAC_POLICY_H
++#define _ABAC_POLICY_H
++
++#include <linux/types.h>
++#include "avp.h"
++
++/* Supported modes of object access */
++enum abac_op { ABAC_READ, ABAC_MODIFY, ABAC_IGNORE };
++enum abac_effect { ABAC_ALLOW, ABAC_DENY };
++
++typedef struct abac_rule abac_rule;
++struct abac_rule {
++    avp *user;
++    avp *object;
++    avp *env;
++    enum abac_op op;
++    enum abac_effect effect;
++    abac_rule *next;
++    int id;
++};
++
++struct abac_policy_tree;
++
++typedef struct {
++    abac_rule *rules;
++    struct abac_policy_tree *tree;
++    int count;
++} abac_policy;
++
++char *abac_op_str(enum abac_op);
++char *abac_effect_str(enum abac_effect);
++enum abac_op convert_to_abac_op(int);
++abac_policy *parse_policy(char *, int);
++void print_abac_policy(abac_policy *);
++void destroy_policy(abac_policy *);
++
++struct abac_policy_tree *build_policy_tree(abac_rule *rules);
++void destroy_policy_tree(struct abac_policy_tree *tree);
++bool resolve_policy_tree(struct abac_policy_tree *tree, avp *uattr, avp *oattr,
++                         avp *env, enum abac_op op);
++
++#endif /* _ABAC_POLICY_H */
+diff --git a/security/abac/include/resolve.h b/security/abac/include/resolve.h
+new file mode 100644
+index 000000000..0676c48fc
+--- /dev/null
++++ b/security/abac/include/resolve.h
+@@ -0,0 +1,21 @@
++/*
++	Definitions for ABAC Resolution methods
++	Copyright (C) <2021>  Hariyala Omkara Naga Sai Varshith
++*/
++
++#ifndef _ABAC_RESOLVE_H
++#define _ABAC_RESOLVE_H
++
++#include <linux/types.h>
++#include "policy.h"
++
++bool abac_resolve(unsigned int, char *, int);
++bool abac_resolve_linear(unsigned int, char *, int);
++bool abac_resolve_tree(unsigned int, char *, int);
++bool abac_resolve_resource(unsigned int uid, const char *resource_id,
++			   enum abac_op op);
++bool abac_resource_is_managed(const char *resource_id);
++void abac_rebuild_lookup_maps(void);
++void abac_destroy_lookup_maps(void);
++
++#endif /* _ABAC_RESOLVE_H */
+diff --git a/security/abac/include/user.h b/security/abac/include/user.h
+new file mode 100644
+index 000000000..0f40bf402
+--- /dev/null
++++ b/security/abac/include/user.h
+@@ -0,0 +1,24 @@
++/*
++	Definitions for ABAC User Attribute structures and methods
++	Copyright (C) <2021>  Hariyala Omkara Naga Sai Varshith
++*/
++
++#ifndef _ABAC_USER_H
++#define _ABAC_USER_H
++
++#include "avp.h"
++#include <linux/list.h>
++
++typedef struct abac_user abac_user;
++struct abac_user {
++    unsigned int uid;
++    avp *attrs;
++    struct hlist_node hnode;
++    abac_user *next;
++};
++
++abac_user *parse_user_attr(char *, int);
++void print_user_attrs(abac_user *);
++void destroy_user_list(abac_user *);
++
++#endif /* _ABAC_USER_H */
+diff --git a/security/abac/obj.c b/security/abac/obj.c
+new file mode 100644
+index 000000000..075e08e1a
+--- /dev/null
++++ b/security/abac/obj.c
+@@ -0,0 +1,89 @@
++/*
++	ABAC object attribute parsing methods
++	Copyright (C) <2021>  Hariyala Omkara Naga Sai Varshith
++*/
++
++#include <linux/string.h>
++#include <linux/kernel.h>
++#include <linux/slab.h>
++#include "obj.h"
++
++void destroy_obj_list(abac_obj *head) {
++	abac_obj *cursor = head;
++	abac_obj *to_free = NULL;
++	while (cursor != NULL) {
++		destroy_avp_list(cursor->attrs);
++		to_free = cursor;
++		cursor = cursor->next;
++		if (to_free)kfree(to_free);
++	}
++}
++
++static abac_obj *parse_line(char *buffer, int start, int end)
++{
++	/* Parse a single line of the buffer */
++	int i;
++	int delim = findidx(buffer, ':', start, end);
++	if (delim - start >= PATH_MAX) {
++		printk("buffer: %s, %d", buffer, delim);
++		printk(KERN_ERR "File path exceeds PATH_MAX limit");
++		return NULL;
++	}
++	abac_obj *o = kcalloc(1, sizeof(abac_obj), GFP_KERNEL);
++	strncpy(o->path, buffer + start, delim - start);
++	o->path[delim - start] = '\0';
++	o->attrs = parse_avp_section(buffer, delim + 1, end);
++	o->next = NULL;
++	return o;
++}
++
++abac_obj *parse_obj_attr(char *buffer, int length)
++{
++	/*
++	 * Parse Object attributes buffer 
++	 * Buffer format (For now all objects are files) 
++	 * <object-path1>:<attr-name1>=<attr-value1>,<attr-name2>=<attr-value2> 
++	 * <object-path2>:<attr-name3>=<attr-value3>,<attr-name4>=<attr-value4> 
++	 */
++	if (buffer == NULL || length < 1) {
++		return NULL;
++	}
++	int start = 0;
++	int end = 0;
++	int i;
++	abac_obj *cursor, *head;
++	cursor = NULL;
++	head = NULL;
++	for (i = 0; i < length; i++) {
++		if (buffer[i] == '\n') {
++			end = i;
++			if (cursor) {
++				cursor->next = parse_line(buffer, start, end);
++				cursor = cursor->next;
++			} else {
++				head = parse_line(buffer, start, end);
++				cursor = head;
++			}
++			start = i + 1;
++		}
++	}
++	return head;
++}
++
++void print_obj_attrs(abac_obj *u)
++{
++	abac_obj *cursor;
++	avp *avp_cursor;
++	cursor = u;
++	while (cursor != NULL) {
++		printk("%s", cursor->path);
++		avp_cursor = cursor->attrs;
++		while (avp_cursor != NULL) {
++			printk("%s=%s", avp_cursor->name, avp_cursor->value);
++			avp_cursor = avp_cursor->next;
++		}
++		cursor = cursor->next;
++		printk("\n");
++	}
++	printk("\n");
++}
+diff --git a/security/abac/pathcfg.c b/security/abac/pathcfg.c
+new file mode 100644
+index 000000000..06ba7d547
+--- /dev/null
++++ b/security/abac/pathcfg.c
+@@ -0,0 +1,80 @@
++/*
++	ABAC include/exclude path parsing helpers
++*/
++
++#include <linux/slab.h>
++#include <linux/string.h>
++#include "pathcfg.h"
++
++static struct abac_path_entry *parse_line(char *buffer, int start, int end)
++{
++	int len = end - start;
++	struct abac_path_entry *entry;
++
++	if (len <= 0)
++		return NULL;
++	entry = kcalloc(1, sizeof(*entry), GFP_KERNEL);
++	if (!entry)
++		return NULL;
++	entry->path = kcalloc(len + 1, sizeof(char), GFP_KERNEL);
++	if (!entry->path) {
++		kfree(entry);
++		return NULL;
++	}
++	strncpy(entry->path, buffer + start, len);
++	entry->path[len] = '\0';
++	return entry;
++}
++
++struct abac_path_entry *parse_path_entries(char *buffer, int length)
++{
++	int start = 0;
++	int i;
++	struct abac_path_entry *cursor = NULL;
++	struct abac_path_entry *head = NULL;
++	struct abac_path_entry *entry;
++
++	if (!buffer || length < 1)
++		return NULL;
++
++	for (i = 0; i < length; i++) {
++		if (buffer[i] != '\n')
++			continue;
++		entry = parse_line(buffer, start, i);
++		if (entry) {
++			if (cursor)
++				cursor->next = entry;
++			else
++				head = entry;
++			cursor = entry;
++		}
++		start = i + 1;
++	}
++	return head;
++}
++
++void destroy_path_entries(struct abac_path_entry *head)
++{
++	struct abac_path_entry *cursor = head;
++	struct abac_path_entry *to_free;
++
++	while (cursor != NULL) {
++		to_free = cursor;
++		cursor = cursor->next;
++		kfree(to_free->path);
++		kfree(to_free);
++	}
++}
++
++bool path_matches_entries(const char *path, struct abac_path_entry *head)
++{
++	size_t prefix_len;
++
++	while (head != NULL) {
++		prefix_len = strlen(head->path);
++		if (prefix_len > 0 && strncmp(path, head->path, prefix_len) == 0)
++			return true;
++		head = head->next;
++	}
++	return false;
++}
+diff --git a/security/abac/policy.c b/security/abac/policy.c
+new file mode 100644
+index 000000000..ac04712d2
+--- /dev/null
++++ b/security/abac/policy.c
+@@ -0,0 +1,182 @@
++/*
++	ABAC policy parsing methods
++	Copyright (C) <2021>  Hariyala Omkara Naga Sai Varshith
++*/
++
++#include <linux/fs.h>
++#include <linux/string.h>
++#include <linux/slab.h>
++#include "avp.h"
++#include "policy.h"
++
++void destroy_policy(abac_policy *p)
++{
++	abac_rule *cursor;
++	abac_rule *to_free = NULL;
++
++	if (!p)
++		return;
++
++	destroy_policy_tree(p->tree);
++	cursor = p->rules;
++	while (cursor != NULL) {
++		destroy_avp_list(cursor->user);
++		destroy_avp_list(cursor->object);
++		destroy_avp_list(cursor->env);
++		to_free = cursor;
++		cursor = cursor->next;
++		if (to_free)
++			kfree(to_free);
++	}
++	kfree(p);
++}
++
++/* Print ABAC access mode */
++char *abac_op_str(enum abac_op mode)
++{
++	if (mode == ABAC_READ)
++		return "ABAC_READ";
++	if (mode == ABAC_MODIFY)
++		return "ABAC_MODIFY";
++	return "ABAC_IGNORE";
++}
++
++char *abac_effect_str(enum abac_effect effect)
++{
++	if (effect == ABAC_DENY)
++		return "ABAC_DENY";
++	return "ABAC_ALLOW";
++}
++
++/* convert file permission mask to ABAC access type*/
++enum abac_op convert_to_abac_op(int mask)
++{
++	if (mask & (MAY_WRITE | MAY_APPEND))
++		return ABAC_MODIFY;
++	if (mask & (MAY_READ | MAY_OPEN | MAY_ACCESS))
++		return ABAC_READ;
++	return ABAC_IGNORE;
++}
++
++static bool parse_rule_op(const char *token, enum abac_op *op)
++{
++	if (strncmp("MODIFY", token, 6) == 0) {
++		*op = ABAC_MODIFY;
++		return true;
++	}
++	if (strncmp("READ", token, 4) == 0) {
++		*op = ABAC_READ;
++		return true;
++	}
++	return false;
++}
++
++static enum abac_effect parse_rule_effect(const char *token)
++{
++	if (token && strncmp("DENY", token, 4) == 0)
++		return ABAC_DENY;
++	return ABAC_ALLOW;
++}
++
++static abac_rule *parse_line(char *buffer, int start, int end)
++{
++	abac_rule *r = kcalloc(1, sizeof(abac_rule), GFP_KERNEL);
++	int user_delim_index;
++	int object_delim_index;
++	int env_delim_index;
++	int effect_delim_index;
++
++	user_delim_index = findidx(buffer, '|', start, end);
++	object_delim_index = findidx(buffer, '|', user_delim_index + 1, end);
++	env_delim_index = findidx(buffer, '|', object_delim_index + 1, end);
++	effect_delim_index = findidx(buffer, '|', env_delim_index + 1, end);
++
++	r->user = parse_avp_section(buffer, start, user_delim_index);
++	r->object = parse_avp_section(buffer, user_delim_index + 1,
++					      object_delim_index);
++	if (buffer[object_delim_index + 1] != '*')
++		r->env = parse_avp_section(buffer, object_delim_index + 1,
++					   env_delim_index);
++
++	r->op = ABAC_IGNORE;
++	if (effect_delim_index == -1) {
++		parse_rule_op(buffer + env_delim_index + 1, &r->op);
++		r->effect = ABAC_ALLOW;
++	} else {
++		parse_rule_op(buffer + env_delim_index + 1, &r->op);
++		r->effect = parse_rule_effect(buffer + effect_delim_index + 1);
++	}
++	return r;
++}
++
++abac_policy *parse_policy(char *buffer, int length)
++{
++	int start = 0;
++	int end = 0;
++	int i;
++	int id = 0;
++	abac_policy *policy;
++	abac_rule *cursor, *head;
++
++	if (buffer == NULL || length < 1)
++		return NULL;
++
++	policy = kcalloc(1, sizeof(abac_policy), GFP_KERNEL);
++	cursor = NULL;
++	head = NULL;
++	for (i = 0; i < length; i++) {
++		if (buffer[i] != '\n')
++			continue;
++		end = i;
++		id++;
++		if (cursor) {
++			cursor->next = parse_line(buffer, start, end);
++			cursor->next->id = id;
++			cursor = cursor->next;
++		} else {
++			head = parse_line(buffer, start, end);
++			cursor = head;
++			cursor->id = id;
++		}
++		start = i + 1;
++	}
++	policy->rules = head;
++	policy->tree = build_policy_tree(head);
++	policy->count = id;
++	return policy;
++}
++
++void print_abac_policy(abac_policy *p)
++{
++	abac_rule *r_cursor;
++	avp *avp_cursor;
++
++	r_cursor = p->rules;
++	printk("Policy contains %d rules", p->count);
++	while (r_cursor != NULL) {
++		printk("------------------------------------------------");
++		printk("ID: %d", r_cursor->id);
++		printk("User attributes: ");
++		avp_cursor = r_cursor->user;
++		while (avp_cursor != NULL) {
++			printk("%s=%s, ", avp_cursor->name, avp_cursor->value);
++			avp_cursor = avp_cursor->next;
++		}
++		printk("Object attributes: ");
++		avp_cursor = r_cursor->object;
++		while (avp_cursor != NULL) {
++			printk("%s=%s, ", avp_cursor->name, avp_cursor->value);
++			avp_cursor = avp_cursor->next;
++		}
++		printk("Environment attributes: ");
++		avp_cursor = r_cursor->env;
++		while (avp_cursor != NULL) {
++			printk("%s=%s, ", avp_cursor->name, avp_cursor->value);
++			avp_cursor = avp_cursor->next;
++		}
++		printk("%s %s\n", abac_effect_str(r_cursor->effect),
++		       abac_op_str(r_cursor->op));
++		r_cursor = r_cursor->next;
++	}
++	printk("------------------------------------------------");
++}
+diff --git a/security/abac/resolve.c b/security/abac/resolve.c
+new file mode 100644
+index 000000000..dec71f25d
+--- /dev/null
++++ b/security/abac/resolve.c
+@@ -0,0 +1,387 @@
++/*
++	ABAC access resolution methods
++	Copyright (C) <2021>  Hariyala Omkara Naga Sai Varshith
++*/
++
++#include "resolve.h"
++#include "policy.h"
++#include "avp.h"
++#include "user.h"
++#include "obj.h"
++#include "abacfs.h"
++#include <linux/hashtable.h>
++#include <linux/jhash.h>
++#include <linux/string.h>
++#include <linux/kernel.h>
++#include <linux/slab.h>
++
++#define ABAC_USER_HASH_BITS 8
++#define ABAC_OBJ_HASH_BITS 10
++
++static DEFINE_HASHTABLE(abac_user_map, ABAC_USER_HASH_BITS);
++static DEFINE_HASHTABLE(abac_obj_map, ABAC_OBJ_HASH_BITS);
++
++static u32 abac_obj_key(const char *path)
++{
++	return jhash(path, strlen(path), 0);
++}
++
++void abac_destroy_lookup_maps(void)
++{
++	abac_user *u_cursor = user_attr;
++	abac_obj *o_cursor = obj_attr;
++
++	while (u_cursor != NULL) {
++		if (!hlist_unhashed(&u_cursor->hnode))
++			hlist_del_init(&u_cursor->hnode);
++		u_cursor = u_cursor->next;
++	}
++
++	while (o_cursor != NULL) {
++		if (!hlist_unhashed(&o_cursor->hnode))
++			hlist_del_init(&o_cursor->hnode);
++		o_cursor = o_cursor->next;
++	}
++}
++
++void abac_rebuild_lookup_maps(void)
++{
++	abac_user *u_cursor = user_attr;
++	abac_obj *o_cursor = obj_attr;
++
++	abac_destroy_lookup_maps();
++	hash_init(abac_user_map);
++	hash_init(abac_obj_map);
++
++	while (u_cursor != NULL) {
++		INIT_HLIST_NODE(&u_cursor->hnode);
++		hash_add(abac_user_map, &u_cursor->hnode, u_cursor->uid);
++		u_cursor = u_cursor->next;
++	}
++
++	while (o_cursor != NULL) {
++		INIT_HLIST_NODE(&o_cursor->hnode);
++		hash_add(abac_obj_map, &o_cursor->hnode,
++			 abac_obj_key(o_cursor->path));
++		o_cursor = o_cursor->next;
++	}
++}
++
++static bool avp_contains(avp *required, avp *actual)
++{
++	avp *r_cursor = required;
++	avp *a_cursor;
++	bool match_found;
++
++	while (r_cursor != NULL) {
++		a_cursor = actual;
++		match_found = false;
++		while (a_cursor != NULL) {
++			if (strcmp(r_cursor->name, a_cursor->name) == 0 &&
++			    strcmp(r_cursor->value, a_cursor->value) == 0) {
++				match_found = true;
++				break;
++			}
++			a_cursor = a_cursor->next;
++		}
++		if (!match_found)
++			return false;
++		r_cursor = r_cursor->next;
++	}
++	return true;
++}
++
++static bool op_matches(enum abac_op rule_op, enum abac_op access_op,
++		       enum abac_effect effect)
++{
++	if (rule_op == access_op)
++		return true;
++	if (effect == ABAC_ALLOW && rule_op == ABAC_MODIFY &&
++	    access_op == ABAC_READ)
++		return true;
++	return false;
++}
++
++static avp *get_user_avp(unsigned int UID, abac_user *head)
++{
++	abac_user *hashed;
++	abac_user *cursor = head;
++
++	if (abac_use_hashmap) {
++		hash_for_each_possible(abac_user_map, hashed, hnode, UID) {
++			if (hashed->uid == UID)
++				return hashed->attrs;
++		}
++		return NULL;
++	}
++
++	while (cursor != NULL) {
++		if (cursor->uid == UID) {
++			return cursor->attrs;
++		}
++		cursor = cursor->next;
++	}
++	return NULL;
++}
++
++static avp *get_obj_avp(char *path, abac_obj *head)
++{
++	abac_obj *hashed;
++	abac_obj *cursor = head;
++
++	if (abac_use_hashmap) {
++		u32 key = abac_obj_key(path);
++
++		hash_for_each_possible(abac_obj_map, hashed, hnode, key) {
++			if (strcmp(path, hashed->path) == 0)
++				return hashed->attrs;
++		}
++		return NULL;
++	}
++
++	while (cursor != NULL) {
++		if (strcmp(path, cursor->path) == 0) {
++			return cursor->attrs;
++		}
++		cursor = cursor->next;
++	}
++	return NULL;
++}
++
++static avp *clone_avp_node(avp *src)
++{
++	avp *node = kcalloc(1, sizeof(*node), GFP_KERNEL);
++
++	if (!node)
++		return NULL;
++	node->name = kstrdup(src->name, GFP_KERNEL);
++	node->value = kstrdup(src->value, GFP_KERNEL);
++	if (!node->name || !node->value) {
++		kfree(node->name);
++		kfree(node->value);
++		kfree(node);
++		return NULL;
++	}
++	return node;
++}
++
++static bool merge_one_avp(avp **head, avp *src)
++{
++	avp *cursor = *head;
++	avp *node;
++	char *new_value;
++
++	while (cursor != NULL) {
++		if (strcmp(cursor->name, src->name) == 0) {
++			new_value = kstrdup(src->value, GFP_KERNEL);
++			if (!new_value)
++				return false;
++			kfree(cursor->value);
++			cursor->value = new_value;
++			return true;
++		}
++		cursor = cursor->next;
++	}
++
++	node = clone_avp_node(src);
++	if (!node)
++		return false;
++	node->next = *head;
++	*head = node;
++	return true;
++}
++
++static bool merge_avp_list(avp **dst, avp *src)
++{
++	while (src != NULL) {
++		if (!merge_one_avp(dst, src))
++			return false;
++		src = src->next;
++	}
++	return true;
++}
++
++static avp *get_inherited_obj_avp(char *path, abac_obj *head)
++{
++	avp *merged = NULL;
++	avp *attrs;
++	char prefix[PATH_MAX];
++	int i;
++	int path_len;
++
++	if (!path || path[0] != '/')
++		return NULL;
++
++	path_len = strlen(path);
++	if (path_len >= PATH_MAX)
++		return NULL;
++
++	if (path_len == 1) {
++		attrs = get_obj_avp(path, head);
++		if (!attrs)
++			return NULL;
++		if (!merge_avp_list(&merged, attrs)) {
++			destroy_avp_list(merged);
++			return NULL;
++		}
++		return merged;
++	}
++
++	for (i = 1; i < path_len; i++) {
++		if (path[i] != '/')
++			continue;
++		strncpy(prefix, path, i);
++		prefix[i] = '\0';
++		attrs = get_obj_avp(prefix, head);
++		if (!attrs)
++			continue;
++		if (!merge_avp_list(&merged, attrs)) {
++			destroy_avp_list(merged);
++			return NULL;
++		}
++	}
++
++	attrs = get_obj_avp(path, head);
++	if (attrs && !merge_avp_list(&merged, attrs)) {
++		destroy_avp_list(merged);
++		return NULL;
++	}
++
++	return merged;
++}
++
++bool abac_resolve_linear(unsigned int UID, char *path, int mask)
++{
++	enum abac_op op = convert_to_abac_op(mask);
++	avp *uattr;
++	avp *oattr;
++	abac_rule *rule;
++	bool allow_found = false;
++
++	if (op == ABAC_IGNORE)
++		return true;
++
++	uattr = get_user_avp(UID, user_attr);
++	if (!uattr)
++		return false;
++
++	oattr = get_inherited_obj_avp(path, obj_attr);
++	if (!oattr) {
++		/* If an object doesn't have attributes, it isn't covered by the policy */
++		return true;
++	}
++
++	if (!policy)
++		goto deny;
++
++	rule = policy->rules;
++	while (rule != NULL) {
++		if (!avp_contains(rule->object, oattr)) {
++			rule = rule->next;
++			continue;
++		}
++		if (!avp_contains(rule->user, uattr)) {
++			rule = rule->next;
++			continue;
++		}
++		if (rule->env && (!env_attr || !avp_contains(rule->env, env_attr))) {
++			rule = rule->next;
++			continue;
++		}
++		if (!op_matches(rule->op, op, rule->effect)) {
++			rule = rule->next;
++			continue;
++		}
++		if (rule->effect == ABAC_DENY)
++			goto deny;
++		allow_found = true;
++		rule = rule->next;
++	}
++
++	destroy_avp_list(oattr);
++	return allow_found;
++
++deny:
++	destroy_avp_list(oattr);
++	return false;
++}
++
++bool abac_resolve_tree(unsigned int UID, char *path, int mask)
++{
++	enum abac_op op = convert_to_abac_op(mask);
++	avp *uattr;
++	avp *oattr;
++
++	if (op == ABAC_IGNORE)
++		return true;
++
++	uattr = get_user_avp(UID, user_attr);
++	if (!uattr)
++		return false;
++
++	oattr = get_inherited_obj_avp(path, obj_attr);
++	if (!oattr) {
++		/* If an object doesn't have attributes, it isn't covered by the policy */
++		return true;
++	}
++
++	if (!policy || !policy->tree)
++		goto deny;
++
++	{
++		bool allowed = resolve_policy_tree(policy->tree, uattr, oattr, env_attr,
++						 op);
++		destroy_avp_list(oattr);
++		return allowed;
++	}
++
++deny:
++	destroy_avp_list(oattr);
++	return false;
++}
++
++bool abac_resolve(unsigned int UID, char *path, int mask)
++{
++	if (abac_mode == ABAC_RESOLVE_LINEAR)
++		return abac_resolve_linear(UID, path, mask);
++	return abac_resolve_tree(UID, path, mask);
++}
++
++bool abac_resolve_resource(unsigned int UID, const char *resource_id,
++			   enum abac_op op)
++{
++	avp *uattr;
++	avp *oattr;
++	abac_rule *rule;
++	bool allow_found = false;
++
++	if (!resource_id || op == ABAC_IGNORE)
++		return true;
++	oattr = get_obj_avp((char *)resource_id, obj_attr);
++	if (!oattr)
++		return true;
++	uattr = get_user_avp(UID, user_attr);
++	if (!uattr)
++		return false;
++	if (!policy)
++		return false;
++	if (abac_mode == ABAC_RESOLVE_TREE && policy->tree)
++		return resolve_policy_tree(policy->tree, uattr, oattr, env_attr, op);
++
++	for (rule = policy->rules; rule != NULL; rule = rule->next) {
++		if (!avp_contains(rule->object, oattr) ||
++		    !avp_contains(rule->user, uattr) ||
++		    (rule->env && (!env_attr || !avp_contains(rule->env, env_attr))) ||
++		    !op_matches(rule->op, op, rule->effect))
++			continue;
++		if (rule->effect == ABAC_DENY)
++			return false;
++		allow_found = true;
++	}
++	return allow_found;
++}
++
++bool abac_resource_is_managed(const char *resource_id)
++{
++	return resource_id && get_obj_avp((char *)resource_id, obj_attr) != NULL;
++}
+diff --git a/security/abac/tree.c b/security/abac/tree.c
+new file mode 100644
+index 000000000..f6782e35f
+--- /dev/null
++++ b/security/abac/tree.c
+@@ -0,0 +1,294 @@
++/*
++	Compiled ABAC policy tree methods
++*/
++
++#include <linux/slab.h>
++#include <linux/string.h>
++#include "avp.h"
++#include "policy.h"
++
++struct abac_effect_leaf {
++	enum abac_effect effect;
++	struct abac_effect_leaf *next;
++};
++
++struct abac_match_node {
++	avp *user;
++	avp *env;
++	struct abac_effect_leaf *effects;
++	struct abac_match_node *next;
++};
++
++struct abac_op_bucket {
++	enum abac_op op;
++	struct abac_match_node *matches;
++	struct abac_op_bucket *next;
++};
++
++struct abac_obj_bucket {
++	avp *object;
++	struct abac_op_bucket *ops;
++	struct abac_obj_bucket *next;
++};
++
++struct abac_policy_tree {
++	struct abac_obj_bucket *objects;
++};
++
++static avp *clone_avp_list(avp *src)
++{
++	avp *head = NULL;
++	avp *tail = NULL;
++	avp *node;
++
++	while (src != NULL) {
++		node = kcalloc(1, sizeof(avp), GFP_KERNEL);
++		node->name = kstrdup(src->name, GFP_KERNEL);
++		node->value = kstrdup(src->value, GFP_KERNEL);
++		if (!head) {
++			head = node;
++			tail = node;
++		} else {
++			tail->next = node;
++			tail = node;
++		}
++		src = src->next;
++	}
++	return head;
++}
++
++static bool avp_list_contains(avp *required, avp *actual)
++{
++	avp *r_cursor = required;
++	avp *a_cursor;
++	bool match_found;
++
++	while (r_cursor != NULL) {
++		a_cursor = actual;
++		match_found = false;
++		while (a_cursor != NULL) {
++			if (strcmp(r_cursor->name, a_cursor->name) == 0 &&
++			    strcmp(r_cursor->value, a_cursor->value) == 0) {
++				match_found = true;
++				break;
++			}
++			a_cursor = a_cursor->next;
++		}
++		if (!match_found)
++			return false;
++		r_cursor = r_cursor->next;
++	}
++	return true;
++}
++
++static bool avp_list_equal(avp *left, avp *right)
++{
++	return avp_list_contains(left, right) && avp_list_contains(right, left);
++}
++
++static bool compare_op(enum abac_op rule_op, enum abac_op access_op,
++		       enum abac_effect effect)
++{
++	if (rule_op == access_op)
++		return true;
++	if (effect == ABAC_ALLOW && rule_op == ABAC_MODIFY &&
++	    access_op == ABAC_READ)
++		return true;
++	return false;
++}
++
++static struct abac_obj_bucket *find_object_bucket(struct abac_policy_tree *tree,
++						  avp *object)
++{
++	struct abac_obj_bucket *bucket = tree->objects;
++
++	while (bucket != NULL) {
++		if (avp_list_equal(bucket->object, object))
++			return bucket;
++		bucket = bucket->next;
++	}
++	return NULL;
++}
++
++static struct abac_op_bucket *find_op_bucket(struct abac_obj_bucket *bucket,
++					      enum abac_op op)
++{
++	struct abac_op_bucket *cursor = bucket->ops;
++
++	while (cursor != NULL) {
++		if (cursor->op == op)
++			return cursor;
++		cursor = cursor->next;
++	}
++	return NULL;
++}
++
++static struct abac_match_node *find_match_node(struct abac_op_bucket *bucket,
++						avp *user, avp *env)
++{
++	struct abac_match_node *cursor = bucket->matches;
++
++	while (cursor != NULL) {
++		if (avp_list_equal(cursor->user, user) &&
++		    avp_list_equal(cursor->env, env))
++			return cursor;
++		cursor = cursor->next;
++	}
++	return NULL;
++}
++
++static void append_effect(struct abac_match_node *match,
++			  enum abac_effect effect)
++{
++	struct abac_effect_leaf *cursor = match->effects;
++	struct abac_effect_leaf *leaf;
++
++	while (cursor != NULL) {
++		if (cursor->effect == effect)
++			return;
++		if (!cursor->next)
++			break;
++		cursor = cursor->next;
++	}
++
++	leaf = kcalloc(1, sizeof(*leaf), GFP_KERNEL);
++	leaf->effect = effect;
++	if (!match->effects)
++		match->effects = leaf;
++	else
++		cursor->next = leaf;
++}
++
++struct abac_policy_tree *build_policy_tree(abac_rule *rules)
++{
++	struct abac_policy_tree *tree;
++	struct abac_obj_bucket *obj_bucket;
++	struct abac_op_bucket *op_bucket;
++	struct abac_match_node *match;
++	abac_rule *rule = rules;
++
++	tree = kcalloc(1, sizeof(*tree), GFP_KERNEL);
++	while (rule != NULL) {
++		obj_bucket = find_object_bucket(tree, rule->object);
++		if (!obj_bucket) {
++			obj_bucket = kcalloc(1, sizeof(*obj_bucket), GFP_KERNEL);
++			obj_bucket->object = clone_avp_list(rule->object);
++			obj_bucket->next = tree->objects;
++			tree->objects = obj_bucket;
++		}
++
++		op_bucket = find_op_bucket(obj_bucket, rule->op);
++		if (!op_bucket) {
++			op_bucket = kcalloc(1, sizeof(*op_bucket), GFP_KERNEL);
++			op_bucket->op = rule->op;
++			op_bucket->next = obj_bucket->ops;
++			obj_bucket->ops = op_bucket;
++		}
++
++		match = find_match_node(op_bucket, rule->user, rule->env);
++		if (!match) {
++			match = kcalloc(1, sizeof(*match), GFP_KERNEL);
++			match->user = clone_avp_list(rule->user);
++			match->env = clone_avp_list(rule->env);
++			match->next = op_bucket->matches;
++			op_bucket->matches = match;
++		}
++		append_effect(match, rule->effect);
++		rule = rule->next;
++	}
++	return tree;
++}
++
++void destroy_policy_tree(struct abac_policy_tree *tree)
++{
++	struct abac_obj_bucket *obj_bucket;
++	struct abac_obj_bucket *obj_next;
++	struct abac_op_bucket *op_bucket;
++	struct abac_op_bucket *op_next;
++	struct abac_match_node *match;
++	struct abac_match_node *match_next;
++	struct abac_effect_leaf *effect;
++	struct abac_effect_leaf *effect_next;
++
++	if (!tree)
++		return;
++
++	obj_bucket = tree->objects;
++	while (obj_bucket != NULL) {
++		obj_next = obj_bucket->next;
++		destroy_avp_list(obj_bucket->object);
++		op_bucket = obj_bucket->ops;
++		while (op_bucket != NULL) {
++			op_next = op_bucket->next;
++			match = op_bucket->matches;
++			while (match != NULL) {
++				match_next = match->next;
++				destroy_avp_list(match->user);
++				destroy_avp_list(match->env);
++				effect = match->effects;
++				while (effect != NULL) {
++					effect_next = effect->next;
++					kfree(effect);
++					effect = effect_next;
++				}
++				kfree(match);
++				match = match_next;
++			}
++			kfree(op_bucket);
++			op_bucket = op_next;
++		}
++		kfree(obj_bucket);
++		obj_bucket = obj_next;
++	}
++	kfree(tree);
++}
++
++bool resolve_policy_tree(struct abac_policy_tree *tree, avp *uattr, avp *oattr,
++			 avp *env, enum abac_op op)
++{
++	struct abac_obj_bucket *obj_bucket;
++	struct abac_op_bucket *op_bucket;
++	struct abac_match_node *match;
++	struct abac_effect_leaf *effect;
++	bool allow_found = false;
++
++	if (!tree)
++		return false;
++
++	obj_bucket = tree->objects;
++	while (obj_bucket != NULL) {
++		if (!avp_list_contains(obj_bucket->object, oattr)) {
++			obj_bucket = obj_bucket->next;
++			continue;
++		}
++		op_bucket = obj_bucket->ops;
++		while (op_bucket != NULL) {
++			match = op_bucket->matches;
++			while (match != NULL) {
++				if (!avp_list_contains(match->user, uattr)) {
++					match = match->next;
++					continue;
++				}
++				if (match->env) {
++					if (!env || !avp_list_contains(match->env, env)) {
++						match = match->next;
++						continue;
++					}
++				}
++				effect = match->effects;
++				while (effect != NULL) {
++					if (compare_op(op_bucket->op, op, effect->effect)) {
++						if (effect->effect == ABAC_DENY)
++							return false;
++						allow_found = true;
++					}
++					effect = effect->next;
++				}
++				match = match->next;
++			}
++			op_bucket = op_bucket->next;
++		}
++		obj_bucket = obj_bucket->next;
++	}
++	return allow_found;
++}
+diff --git a/security/abac/user.c b/security/abac/user.c
+new file mode 100644
+index 000000000..d465f1d78
+--- /dev/null
++++ b/security/abac/user.c
+@@ -0,0 +1,95 @@
++/*
++	ABAC user attribute parsing methods
++	Copyright (C) <2021>  Hariyala Omkara Naga Sai Varshith
++*/
++
++#include <linux/string.h>
++#include <linux/kernel.h>
++#include <linux/slab.h>
++#include "user.h"
++
++void destroy_user_list(abac_user *head) {
++	abac_user *cursor = head;
++	abac_user *to_free = NULL;
++	while (cursor != NULL) {
++		destroy_avp_list(cursor->attrs);
++		to_free = cursor;
++		cursor = cursor->next;
++		if (to_free)kfree(to_free);
++	}
++}
++
++static abac_user *parse_line(char *buffer, int start, int end)
++{
++	/* Parse a single line of the buffer */
++	int i, uid_len;
++	unsigned int uid;
++	abac_user *u = kcalloc(1, sizeof(abac_user), GFP_KERNEL);
++	int delim = findidx(buffer, ':', start, end);
++	uid_len = delim - start + 1;
++	char *uidbuf = kcalloc(delim - start + 1, sizeof(char), GFP_KERNEL);
++	for (i = 0; i < uid_len; i++) {
++		uidbuf[i] = buffer[start + i];
++	}
++	uidbuf[delim - start] = '\0';
++	if (kstrtouint(uidbuf, 10, &uid) != 0) {
++		printk("Invalid uidbuf %s\n", uidbuf);
++		kfree(u);
++		return NULL;
++	}
++	u->uid = uid;
++	u->attrs = parse_avp_section(buffer, delim + 1, end);
++	u->next = NULL;
++	return u;
++}
++
++abac_user *parse_user_attr(char *buffer, int length)
++{
++	/*
++	 * Parse user attributes buffer 
++	 * Buffer format 
++	 * <user-id1>:<attr-name1>=<attr-value1>,<attr-name2>=<attr-value2> 
++	 * <user-id2>:<attr-name3>=<attr-value3>,<attr-name4>=<attr-value4> 
++	 */
++	if (buffer == NULL || length < 1) {
++		return NULL;
++	}
++	int start = 0;
++	int end = 0;
++	int i;
++	abac_user *cursor, *head;
++	cursor = NULL;
++	head = NULL;
++	for (i = 0; i < length; i++) {
++		if (buffer[i] == '\n') {
++			end = i;
++			if (cursor) {
++				cursor->next = parse_line(buffer, start, end);
++				cursor = cursor->next;
++			} else {
++				head = parse_line(buffer, start, end);
++				cursor = head;
++			}
++			start = i + 1;
++		}
++	}
++	return head;
++}
++
++void print_user_attrs(abac_user *u)
++{
++	abac_user *cursor;
++	avp *avp_cursor;
++	cursor = u;
++	while (cursor != NULL) {
++		printk("%d", cursor->uid);
++		avp_cursor = cursor->attrs;
++		while (avp_cursor != NULL) {
++			printk("%s=%s", avp_cursor->name, avp_cursor->value);
++			avp_cursor = avp_cursor->next;
++		}
++		cursor = cursor->next;
++		printk("\n");
++	}
++	printk("\n");
++}
+diff --git a/security/security.c b/security/security.c
+index 603c3c6d5..b1977122f 100644
+--- a/security/security.c
++++ b/security/security.c
+@@ -3002,6 +3002,32 @@ int security_file_ioctl_compat(struct file *file, unsigned int cmd,
+ }
+ EXPORT_SYMBOL_GPL(security_file_ioctl_compat);
+ 
++int security_gpio_line_request(const char *chip_name, unsigned int offset,
++			       u64 flags)
++{
++	return call_int_hook(gpio_line_request, chip_name, offset, flags);
++}
++EXPORT_SYMBOL_GPL(security_gpio_line_request);
++
++int security_gpio_line_config(const char *chip_name, unsigned int offset,
++			      u64 flags)
++{
++	return call_int_hook(gpio_line_config, chip_name, offset, flags);
++}
++EXPORT_SYMBOL_GPL(security_gpio_line_config);
++
++int security_gpio_line_get_value(const char *chip_name, unsigned int offset)
++{
++	return call_int_hook(gpio_line_get_value, chip_name, offset);
++}
++EXPORT_SYMBOL_GPL(security_gpio_line_get_value);
++
++int security_gpio_line_set_value(const char *chip_name, unsigned int offset)
++{
++	return call_int_hook(gpio_line_set_value, chip_name, offset);
++}
++EXPORT_SYMBOL_GPL(security_gpio_line_set_value);
++
+ static inline unsigned long mmap_prot(struct file *file, unsigned long prot)
+ {
+ 	/*

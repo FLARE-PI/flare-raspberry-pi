@@ -1,0 +1,26 @@
+{
+  "benchmark_root": "/home/secured/musima",
+  "converter_git_commit": "8eb1c0bf83300fb72c9af6bc4d6232400f5dd726",
+  "deny_rule_count": 4,
+  "environment_count": 4,
+  "logical_dataset_id": "CORRECTNESS",
+  "object_count": 50,
+  "operation_mapping": "READ_ONLY",
+  "permit_rule_count": 12,
+  "source_filename": "musima_correctness_s20_o50_e4_seed42.zip",
+  "source_sha256": "22b9d9af073140774c1a33f175103ab4dc23f29d18644bd76c7e386532fab445",
+  "subject_count": 20,
+  "translation_assumptions": [
+    "MuSimA permit rules map to ABAC ALLOW rules.",
+    "MuSimA deny rules map to ABAC DENY rules with deny-overrides.",
+    "MuSimA wildcard predicates are omitted from their ABAC rule section.",
+    "All requests use READ; MuSimA has no operation dimension."
+  ],
+  "translator_internal_attributes": {
+    "object_universal": "__musima_any_object",
+    "subject_universal": "__musima_any_subject",
+    "value": "1"
+  },
+  "uid_base": 200000,
+  "wildcard_translation_mode": "omit_predicate"
+}

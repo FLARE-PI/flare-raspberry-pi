@@ -1,0 +1,305 @@
+{
+  "objects": {
+    "/home/secured/musima/correctness/objects/O_1": {
+      "OA_1": "OA_1_2",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_2",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_10": {
+      "OA_1": "OA_1_4",
+      "OA_2": "OA_2_3",
+      "OA_3": "OA_3_2",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_11": {
+      "OA_1": "OA_1_4",
+      "OA_2": "OA_2_3",
+      "OA_3": "OA_3_3",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_12": {
+      "OA_1": "OA_1_1",
+      "OA_2": "OA_2_4",
+      "OA_3": "OA_3_1",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_13": {
+      "OA_1": "OA_1_1",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_2",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_14": {
+      "OA_1": "OA_1_4",
+      "OA_2": "OA_2_1",
+      "OA_3": "OA_3_1",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_15": {
+      "OA_1": "OA_1_3",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_2",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_16": {
+      "OA_1": "OA_1_3",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_1",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_17": {
+      "OA_1": "OA_1_4",
+      "OA_2": "OA_2_3",
+      "OA_3": "OA_3_3",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_18": {
+      "OA_1": "OA_1_1",
+      "OA_2": "OA_2_4",
+      "OA_3": "OA_3_2",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_19": {
+      "OA_1": "OA_1_2",
+      "OA_2": "OA_2_1",
+      "OA_3": "OA_3_4",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_2": {
+      "OA_1": "OA_1_2",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_2",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_20": {
+      "OA_1": "OA_1_1",
+      "OA_2": "OA_2_3",
+      "OA_3": "OA_3_1",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_21": {
+      "OA_1": "OA_1_4",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_2",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_22": {
+      "OA_1": "OA_1_3",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_1",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_23": {
+      "OA_1": "OA_1_2",
+      "OA_2": "OA_2_1",
+      "OA_3": "OA_3_4",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_24": {
+      "OA_1": "OA_1_1",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_3",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_25": {
+      "OA_1": "OA_1_2",
+      "OA_2": "OA_2_4",
+      "OA_3": "OA_3_1",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_26": {
+      "OA_1": "OA_1_2",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_2",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_27": {
+      "OA_1": "OA_1_3",
+      "OA_2": "OA_2_3",
+      "OA_3": "OA_3_3",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_28": {
+      "OA_1": "OA_1_3",
+      "OA_2": "OA_2_3",
+      "OA_3": "OA_3_2",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_29": {
+      "OA_1": "OA_1_4",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_2",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_3": {
+      "OA_1": "OA_1_4",
+      "OA_2": "OA_2_4",
+      "OA_3": "OA_3_2",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_30": {
+      "OA_1": "OA_1_2",
+      "OA_2": "OA_2_4",
+      "OA_3": "OA_3_1",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_31": {
+      "OA_1": "OA_1_1",
+      "OA_2": "OA_2_4",
+      "OA_3": "OA_3_1",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_32": {
+      "OA_1": "OA_1_3",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_4",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_33": {
+      "OA_1": "OA_1_4",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_4",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_34": {
+      "OA_1": "OA_1_3",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_2",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_35": {
+      "OA_1": "OA_1_4",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_2",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_36": {
+      "OA_1": "OA_1_2",
+      "OA_2": "OA_2_1",
+      "OA_3": "OA_3_2",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_37": {
+      "OA_1": "OA_1_3",
+      "OA_2": "OA_2_3",
+      "OA_3": "OA_3_3",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_38": {
+      "OA_1": "OA_1_2",
+      "OA_2": "OA_2_3",
+      "OA_3": "OA_3_4",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_39": {
+      "OA_1": "OA_1_1",
+      "OA_2": "OA_2_1",
+      "OA_3": "OA_3_3",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_4": {
+      "OA_1": "OA_1_2",
+      "OA_2": "OA_2_3",
+      "OA_3": "OA_3_2",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_40": {
+      "OA_1": "OA_1_1",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_3",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_41": {
+      "OA_1": "OA_1_1",
+      "OA_2": "OA_2_4",
+      "OA_3": "OA_3_2",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_42": {
+      "OA_1": "OA_1_3",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_1",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_43": {
+      "OA_1": "OA_1_2",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_1",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_44": {
+      "OA_1": "OA_1_3",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_4",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_45": {
+      "OA_1": "OA_1_4",
+      "OA_2": "OA_2_4",
+      "OA_3": "OA_3_2",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_46": {
+      "OA_1": "OA_1_1",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_1",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_47": {
+      "OA_1": "OA_1_2",
+      "OA_2": "OA_2_3",
+      "OA_3": "OA_3_1",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_48": {
+      "OA_1": "OA_1_4",
+      "OA_2": "OA_2_3",
+      "OA_3": "OA_3_2",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_49": {
+      "OA_1": "OA_1_1",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_1",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_5": {
+      "OA_1": "OA_1_2",
+      "OA_2": "OA_2_3",
+      "OA_3": "OA_3_1",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_50": {
+      "OA_1": "OA_1_1",
+      "OA_2": "OA_2_3",
+      "OA_3": "OA_3_1",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_6": {
+      "OA_1": "OA_1_3",
+      "OA_2": "OA_2_4",
+      "OA_3": "OA_3_3",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_7": {
+      "OA_1": "OA_1_1",
+      "OA_2": "OA_2_3",
+      "OA_3": "OA_3_1",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_8": {
+      "OA_1": "OA_1_4",
+      "OA_2": "OA_2_2",
+      "OA_3": "OA_3_1",
+      "__musima_any_object": "1"
+    },
+    "/home/secured/musima/correctness/objects/O_9": {
+      "OA_1": "OA_1_1",
+      "OA_2": "OA_2_4",
+      "OA_3": "OA_3_1",
+      "__musima_any_object": "1"
+    }
+  },
+  "resources": {}
+}

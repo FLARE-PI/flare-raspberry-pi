@@ -1,0 +1,16 @@
+[Unit]
+Description=Publish BMP280 temperature state to ABAC
+After=abac-safe-scope.service
+Requires=abac-safe-scope.service
+ConditionPathExists=/sys/kernel/security/abac/env_attr
+
+[Service]
+Type=simple
+User=root
+EnvironmentFile=/etc/default/abac-bmp280-env
+ExecStart=/usr/local/lib/abac/bmp280_env_collector.py --samples 0 --interval ${BMP280_INTERVAL}
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

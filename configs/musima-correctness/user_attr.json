@@ -1,0 +1,184 @@
+{
+  "users": {
+    "S_1": {
+      "avps": {
+        "SA_1": "SA_1_2",
+        "SA_2": "SA_2_3",
+        "SA_3": "SA_3_1",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200000
+    },
+    "S_10": {
+      "avps": {
+        "SA_1": "SA_1_3",
+        "SA_2": "SA_2_1",
+        "SA_3": "SA_3_1",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200009
+    },
+    "S_11": {
+      "avps": {
+        "SA_1": "SA_1_1",
+        "SA_2": "SA_2_3",
+        "SA_3": "SA_3_4",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200010
+    },
+    "S_12": {
+      "avps": {
+        "SA_1": "SA_1_4",
+        "SA_2": "SA_2_2",
+        "SA_3": "SA_3_3",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200011
+    },
+    "S_13": {
+      "avps": {
+        "SA_1": "SA_1_4",
+        "SA_2": "SA_2_1",
+        "SA_3": "SA_3_4",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200012
+    },
+    "S_14": {
+      "avps": {
+        "SA_1": "SA_1_1",
+        "SA_2": "SA_2_4",
+        "SA_3": "SA_3_4",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200013
+    },
+    "S_15": {
+      "avps": {
+        "SA_1": "SA_1_1",
+        "SA_2": "SA_2_4",
+        "SA_3": "SA_3_2",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200014
+    },
+    "S_16": {
+      "avps": {
+        "SA_1": "SA_1_1",
+        "SA_2": "SA_2_3",
+        "SA_3": "SA_3_4",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200015
+    },
+    "S_17": {
+      "avps": {
+        "SA_1": "SA_1_2",
+        "SA_2": "SA_2_2",
+        "SA_3": "SA_3_1",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200016
+    },
+    "S_18": {
+      "avps": {
+        "SA_1": "SA_1_3",
+        "SA_2": "SA_2_1",
+        "SA_3": "SA_3_1",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200017
+    },
+    "S_19": {
+      "avps": {
+        "SA_1": "SA_1_2",
+        "SA_2": "SA_2_3",
+        "SA_3": "SA_3_1",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200018
+    },
+    "S_2": {
+      "avps": {
+        "SA_1": "SA_1_4",
+        "SA_2": "SA_2_1",
+        "SA_3": "SA_3_2",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200001
+    },
+    "S_20": {
+      "avps": {
+        "SA_1": "SA_1_2",
+        "SA_2": "SA_2_2",
+        "SA_3": "SA_3_1",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200019
+    },
+    "S_3": {
+      "avps": {
+        "SA_1": "SA_1_3",
+        "SA_2": "SA_2_2",
+        "SA_3": "SA_3_1",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200002
+    },
+    "S_4": {
+      "avps": {
+        "SA_1": "SA_1_3",
+        "SA_2": "SA_2_2",
+        "SA_3": "SA_3_4",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200003
+    },
+    "S_5": {
+      "avps": {
+        "SA_1": "SA_1_1",
+        "SA_2": "SA_2_2",
+        "SA_3": "SA_3_1",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200004
+    },
+    "S_6": {
+      "avps": {
+        "SA_1": "SA_1_1",
+        "SA_2": "SA_2_3",
+        "SA_3": "SA_3_2",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200005
+    },
+    "S_7": {
+      "avps": {
+        "SA_1": "SA_1_1",
+        "SA_2": "SA_2_2",
+        "SA_3": "SA_3_1",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200006
+    },
+    "S_8": {
+      "avps": {
+        "SA_1": "SA_1_4",
+        "SA_2": "SA_2_3",
+        "SA_3": "SA_3_2",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200007
+    },
+    "S_9": {
+      "avps": {
+        "SA_1": "SA_1_3",
+        "SA_2": "SA_2_3",
+        "SA_3": "SA_3_2",
+        "__musima_any_subject": "1"
+      },
+      "uid": 200008
+    }
+  }
+}

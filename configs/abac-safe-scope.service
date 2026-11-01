@@ -1,0 +1,13 @@
+[Unit]
+Description=Initialize safe ABAC path scope before SSH
+After=basic.target
+Before=ssh.service
+ConditionPathExists=/sys/kernel/security/abac/include_paths
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -ec 'echo /home/secured/ > /sys/kernel/security/abac/include_paths; printf "CLEAR\n" > /sys/kernel/security/abac/exclude_paths'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
